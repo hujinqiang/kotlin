@@ -1,20 +1,22 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 public final class ClassObjectField {
     private static final java.lang.String x;
     private static final java.lang.String y;
     @org.jetbrains.annotations.NotNull
     public static final ClassObjectField.Companion Companion;
 =======
+=======
+>>>>>>> Decompiled
 public final class ClassObjectField /* ClassObjectField*/ {
-  @null()
+  @org.jetbrains.annotations.NotNull()
   public static final ClassObjectField.Companion Companion;
->>>>>>> TESTS
 
+  @org.jetbrains.annotations.Nullable()
   private static final java.lang.String x;
 
   private static final java.lang.String y;
 
-  @null()
   public  ClassObjectField();//  .ctor()
 
 

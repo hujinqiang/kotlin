@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 public final class A {
     private static final int c;
     private static java.lang.String v;
@@ -8,17 +9,19 @@ public final class A {
     @org.jetbrains.annotations.NotNull
     public static final pack.A INSTANCE;
 =======
+=======
+>>>>>>> Decompiled
 public final class A /* pack.A*/ {
-  @null()
-  public static final pack.A INSTANCE;
->>>>>>> TESTS
+  @org.jetbrains.annotations.NotNull()
+  private static java.lang.String v;
 
   @org.jetbrains.annotations.NotNull()
   public static final java.lang.String cv = "A" /* initializer type: java.lang.String */ /* constant value A */;
 
-  private static final int c;
+  @org.jetbrains.annotations.NotNull()
+  public static final pack.A INSTANCE;
 
-  private static java.lang.String v;
+  private static final int c;
 
   public static final int cc = 1 /* initializer type: int */ /* constant value 1 */;
 
