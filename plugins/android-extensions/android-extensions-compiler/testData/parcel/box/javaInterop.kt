@@ -1,3 +1,4 @@
+// IGNORE_BACKEND: JVM
 // This issue affects AIDL generated files, as reported in KT-25807
 // WITH_RUNTIME
 // FILE: J.java
