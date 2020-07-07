@@ -284,9 +284,7 @@ class ParcelableIrTransformer(private val context: IrPluginContext, private val 
         }
     }
 
-    private class ParcelableProperty(val field: IrField, parcelerThunk: () -> IrParcelSerializer) {
-        val parceler by lazy(parcelerThunk)
-    }
+    private data class ParcelableProperty(val field: IrField, val parceler: IrParcelSerializer)
 
     private val IrClass.classParceler: IrParcelSerializer
         get() = if (kind == ClassKind.CLASS) {
@@ -305,9 +303,8 @@ class ParcelableIrTransformer(private val context: IrPluginContext, private val 
             return constructor.valueParameters.map { parameter ->
                 val property = properties.first { it.name == parameter.name }
                 val localScope = property.getParcelerScope(toplevelScope)
-                ParcelableProperty(property.backingField!!) {
-                    serializerFactory.get(parameter.type, parcelizeType = defaultType, strict = true, scope = localScope)
-                }
+                val parceler = serializerFactory.get(parameter.type, parcelizeType = defaultType, strict = true, scope = localScope)
+                ParcelableProperty(property.backingField!!, parceler)
             }
         }
 
