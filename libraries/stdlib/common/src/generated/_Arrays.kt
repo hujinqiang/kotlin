@@ -6562,8 +6562,9 @@ public expect fun <T> Array<out T>?.contentDeepToString(): String
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use Array<T>?.contentEquals(other: Array<T>?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun <T> Array<out T>.contentEquals(other: Array<out T>): Boolean
 
 /**
@@ -6573,8 +6574,9 @@ public expect infix fun <T> Array<out T>.contentEquals(other: Array<out T>): Boo
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use ByteArray?.contentEquals(other: ByteArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun ByteArray.contentEquals(other: ByteArray): Boolean
 
 /**
@@ -6584,8 +6586,9 @@ public expect infix fun ByteArray.contentEquals(other: ByteArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use ShortArray?.contentEquals(other: ShortArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun ShortArray.contentEquals(other: ShortArray): Boolean
 
 /**
@@ -6595,8 +6598,9 @@ public expect infix fun ShortArray.contentEquals(other: ShortArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use IntArray?.contentEquals(other: IntArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun IntArray.contentEquals(other: IntArray): Boolean
 
 /**
@@ -6606,8 +6610,9 @@ public expect infix fun IntArray.contentEquals(other: IntArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use LongArray?.contentEquals(other: LongArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun LongArray.contentEquals(other: LongArray): Boolean
 
 /**
@@ -6617,8 +6622,9 @@ public expect infix fun LongArray.contentEquals(other: LongArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use FloatArray?.contentEquals(other: FloatArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun FloatArray.contentEquals(other: FloatArray): Boolean
 
 /**
@@ -6628,8 +6634,9 @@ public expect infix fun FloatArray.contentEquals(other: FloatArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use DoubleArray?.contentEquals(other: DoubleArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun DoubleArray.contentEquals(other: DoubleArray): Boolean
 
 /**
@@ -6639,8 +6646,9 @@ public expect infix fun DoubleArray.contentEquals(other: DoubleArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use BooleanArray?.contentEquals(other: BooleanArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun BooleanArray.contentEquals(other: BooleanArray): Boolean
 
 /**
@@ -6650,8 +6658,9 @@ public expect infix fun BooleanArray.contentEquals(other: BooleanArray): Boolean
  * The elements are compared for equality with the [equals][Any.equals] function.
  * For floating point numbers it means that `NaN` is equal to itself and `-0.0` is not equal to `0.0`.
  */
+@Deprecated("Use CharArray?.contentEquals(other: CharArray?) instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect infix fun CharArray.contentEquals(other: CharArray): Boolean
 
 /**
@@ -6747,64 +6756,73 @@ public expect infix fun CharArray?.contentEquals(other: CharArray?): Boolean
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use Array<T>?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun <T> Array<out T>.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use ByteArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun ByteArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use ShortArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun ShortArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use IntArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun IntArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use LongArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun LongArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use FloatArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun FloatArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use DoubleArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun DoubleArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use BooleanArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun BooleanArray.contentHashCode(): Int
 
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
+@Deprecated("Use CharArray?.contentHashCode() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun CharArray.contentHashCode(): Int
 
 /**
@@ -6866,8 +6884,9 @@ public expect fun CharArray?.contentHashCode(): Int
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use Array<T>?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun <T> Array<out T>.contentToString(): String
 
 /**
@@ -6875,8 +6894,9 @@ public expect fun <T> Array<out T>.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use ByteArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun ByteArray.contentToString(): String
 
 /**
@@ -6884,8 +6904,9 @@ public expect fun ByteArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use ShortArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun ShortArray.contentToString(): String
 
 /**
@@ -6893,8 +6914,9 @@ public expect fun ShortArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use IntArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun IntArray.contentToString(): String
 
 /**
@@ -6902,8 +6924,9 @@ public expect fun IntArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use LongArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun LongArray.contentToString(): String
 
 /**
@@ -6911,8 +6934,9 @@ public expect fun LongArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use FloatArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun FloatArray.contentToString(): String
 
 /**
@@ -6920,8 +6944,9 @@ public expect fun FloatArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use DoubleArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun DoubleArray.contentToString(): String
 
 /**
@@ -6929,8 +6954,9 @@ public expect fun DoubleArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use BooleanArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun BooleanArray.contentToString(): String
 
 /**
@@ -6938,8 +6964,9 @@ public expect fun BooleanArray.contentToString(): String
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
+@Deprecated("Use CharArray?.contentToString() instead.", ReplaceWith(""))
 @SinceKotlin("1.1")
-@kotlin.internal.LowPriorityInOverloadResolution
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
 public expect fun CharArray.contentToString(): String
 
 /**

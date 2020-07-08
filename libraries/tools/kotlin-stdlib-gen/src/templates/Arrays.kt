@@ -82,11 +82,18 @@ object ArrayOps : TemplateGroupBase() {
         }
     }
 
+    private fun MemberBuilder.deprecatedNonNullArrayFunction(name: String, takesSelfArgument: Boolean = false) {
+        val receiver = primitive?.let { it.name + "Array?" } ?: "Array<T>?"
+        val argument = "other: $receiver".ifOrEmpty(takesSelfArgument)
+        deprecate(Deprecation("Use $receiver.$name($argument) instead.", replaceWith = ""))
+        annotation("""@DeprecatedSinceKotlin(hiddenSince = "1.4")""")
+    }
+
     val f_contentEquals = fn("contentEquals(other: SELF)") {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        annotation("@kotlin.internal.LowPriorityInOverloadResolution")
+        deprecatedNonNullArrayFunction("contentEquals", takesSelfArgument = true)
         infix(true)
         doc {
             """
@@ -247,7 +254,7 @@ object ArrayOps : TemplateGroupBase() {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        annotation("@kotlin.internal.LowPriorityInOverloadResolution")
+        deprecatedNonNullArrayFunction("contentToString")
         doc {
             """
             Returns a string representation of the contents of the specified array as if it is [List].
@@ -369,7 +376,7 @@ object ArrayOps : TemplateGroupBase() {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        annotation("@kotlin.internal.LowPriorityInOverloadResolution")
+        deprecatedNonNullArrayFunction("contentHashCode")
         doc {
             "Returns a hash code based on the contents of this array as if it is [List]."
         }
