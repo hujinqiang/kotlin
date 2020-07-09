@@ -34,6 +34,7 @@ dependencies {
     testCompile(kotlinStdlib("jdk8"))
     testCompile(project(":kotlin-reflect"))
     testCompile(project(":kotlin-android-extensions"))
+    testCompile(project(":kotlin-parcelize-compiler"))
     testCompile(commonDep("org.jetbrains.intellij.deps", "trove4j"))
 
     testCompile(gradleApi())
@@ -97,6 +98,7 @@ tasks.withType<Test> {
         ":kotlin-noarg:install",
         ":kotlin-sam-with-receiver:install",
         ":kotlin-android-extensions:install",
+        ":kotlin-parcelize-compiler:install",
         ":kotlin-build-common:install",
         ":kotlin-compiler-embeddable:install",
         ":native:kotlin-native-utils:install",
