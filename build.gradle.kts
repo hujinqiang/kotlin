@@ -329,7 +329,8 @@ val gradlePluginProjects = listOf(
     ":kotlin-allopen",
     ":kotlin-annotation-processing-gradle",
     ":kotlin-noarg",
-    ":kotlin-sam-with-receiver"
+    ":kotlin-sam-with-receiver",
+    ":kotlin-parcelize-compiler"
 )
 
 apply {
@@ -787,6 +788,8 @@ tasks {
             ":kotlin-annotation-processing-gradle:test",
             ":kotlinx-serialization-compiler-plugin:test",
             ":kotlinx-serialization-ide-plugin:test",
+            ":plugins:parcelize:parcelize-compiler:test",
+            ":plugins:parcelize:parcelize-ide:test",
             ":idea:jvm-debugger:jvm-debugger-test:test"
         )
     }
@@ -817,6 +820,7 @@ tasks {
                 ":prepare:ide-plugin-dependencies:noarg-compiler-plugin-for-ide:publish",
                 ":prepare:ide-plugin-dependencies:sam-with-receiver-compiler-plugin-for-ide:publish",
                 ":prepare:ide-plugin-dependencies:compiler-components-for-jps:publish",
+                ":prepare:ide-plugin-dependencies:parcelize-compiler-plugin-for-ide:publish",
                 ":kotlin-script-runtime:publish",
                 ":kotlin-script-util:publish",
                 ":kotlin-scripting-common:publish",
