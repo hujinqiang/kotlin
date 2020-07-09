@@ -22412,6 +22412,11 @@ public class IrJsCodegenBoxTestGenerated extends AbstractIrJsCodegenBoxTest {
                     runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/innerGeneric.kt");
                 }
 
+                @TestMetadata("recursiveBound.kt")
+                public void testRecursiveBound() throws Exception {
+                    runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/recursiveBound.kt");
+                }
+
                 @TestMetadata("simpleClassParameter.kt")
                 public void testSimpleClassParameter() throws Exception {
                     runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/simpleClassParameter.kt");
