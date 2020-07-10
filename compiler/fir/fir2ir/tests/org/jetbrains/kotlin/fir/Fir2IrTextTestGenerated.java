@@ -359,6 +359,11 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             runTest("compiler/testData/ir/irText/declarations/primaryCtorProperties.kt");
         }
 
+        @TestMetadata("problemInline.kt")
+        public void testProblemInline() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/problemInline.kt");
+        }
+
         @TestMetadata("typeAlias.kt")
         public void testTypeAlias() throws Exception {
             runTest("compiler/testData/ir/irText/declarations/typeAlias.kt");
