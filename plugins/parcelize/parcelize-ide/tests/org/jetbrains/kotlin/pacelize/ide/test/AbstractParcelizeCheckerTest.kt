@@ -8,19 +8,13 @@ package org.jetbrains.kotlin.pacelize.ide.test
 import org.jetbrains.kotlin.checkers.AbstractPsiCheckerTest
 import org.jetbrains.kotlin.idea.test.ConfigLibraryUtil
 import org.jetbrains.kotlin.test.KotlinTestUtils
-import java.io.File
 
 abstract class AbstractParcelizeCheckerTest : AbstractPsiCheckerTest() {
     override fun setUp() {
         super.setUp()
 
-        val androidSdk = KotlinTestUtils.findAndroidSdk()
-        val androidJarDir = File(androidSdk, "platforms")
-            .listFiles().orEmpty()
-            .sortedBy { it.name }
-            .first { it.name.startsWith("android-") }
-
-        ConfigLibraryUtil.addLibrary(module, "androidJar", androidJarDir.absolutePath, arrayOf("android.jar"))
+        val androidJar = KotlinTestUtils.findAndroidApiJar()
+        ConfigLibraryUtil.addLibrary(module, "androidJar", androidJar.parentFile.absolutePath, arrayOf(androidJar.name))
         ConfigLibraryUtil.addLibrary(module, "androidExtensionsRuntime", "dist/kotlinc/lib", arrayOf("parcelize-runtime.jar"))
     }
 

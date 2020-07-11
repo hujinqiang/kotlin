@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.parcelize.test
 
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
 import org.jetbrains.kotlin.codegen.AbstractAsmLikeInstructionListingTest
 import org.jetbrains.kotlin.parcelize.ParcelizeComponentRegistrar
 import org.jetbrains.kotlin.test.TargetBackend
@@ -16,7 +15,7 @@ abstract class AbstractParcelizeBytecodeListingTest : AbstractAsmLikeInstruction
     override fun setupEnvironment(environment: KotlinCoreEnvironment) {
         ParcelizeComponentRegistrar.registerParcelizeComponents(environment.project)
         addParcelizeRuntimeLibrary(environment)
-        environment.updateClasspath(listOf(JvmClasspathRoot(AbstractParcelizeBoxTest.layoutlibJar)))
+        addAndroidJarLibrary(environment)
     }
 }
 

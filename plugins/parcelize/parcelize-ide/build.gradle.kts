@@ -27,6 +27,7 @@ dependencies {
     }
 
     testCompile(projectTests(":idea"))
+    testCompile(projectTests(":plugins:parcelize:parcelize-compiler"))
 
     testRuntime(project(":allopen-ide-plugin"))
     testRuntime(project(":noarg-ide-plugin"))
@@ -56,7 +57,6 @@ testsJar {}
 projectTest(parallel = true) {
     dependsOn(":dist")
     workingDir = rootDir
-    useAndroidSdk()
     useAndroidJar()
 }
 
