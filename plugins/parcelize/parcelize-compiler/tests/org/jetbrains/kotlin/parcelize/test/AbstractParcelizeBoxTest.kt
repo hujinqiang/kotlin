@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
 import org.jetbrains.kotlin.codegen.CodegenTestCase
 import org.jetbrains.kotlin.codegen.getClassFiles
 import org.jetbrains.kotlin.parcelize.ParcelizeComponentRegistrar
+import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.utils.PathUtil
 import org.jetbrains.org.objectweb.asm.ClassWriter
@@ -37,14 +38,14 @@ abstract class AbstractParcelizeBoxTest : CodegenTestCase() {
                 ?: throw RuntimeException("Unable to get a valid path from 'ideaSdk.androidPlugin.path' property, please point it to the Idea android plugin location")
         }
 
-        private fun getLayoutLibFile(name: String): File {
-            val file = File(androidPluginPath, name)
-            assert(file.exists()) { "File not found: $file" }
-            return file
+        private fun getLayoutLibFile(pattern: String): File {
+            val nameRegex = "^$pattern-[0-9\\.]+\\.jar$".toRegex()
+            return File(androidPluginPath).listFiles().orEmpty().singleOrNull { it.name.matches(nameRegex) }
+                ?: error("Can't find file for pattern $nameRegex in $androidPluginPath")
         }
 
-        val layoutlibJar: File by lazy { getLayoutLibFile("layoutlib-26.5.0.2.jar") }
-        val layoutlibApiJar: File by lazy { getLayoutLibFile("layoutlib-api-26.5.0.jar") }
+        val layoutlibJar: File by lazy { getLayoutLibFile("layoutlib(-jre[0-9]+)?") }
+        val layoutlibApiJar: File by lazy { getLayoutLibFile("layoutlib-api") }
 
         private val JUNIT_GENERATED_TEST_CLASS_BYTES by lazy { constructSyntheticTestClass() }
         private const val JUNIT_GENERATED_TEST_CLASS_FQNAME = "test.JunitTest"
@@ -119,8 +120,11 @@ abstract class AbstractParcelizeBoxTest : CodegenTestCase() {
             .sortedBy { it.nameWithoutExtension }
 
         val junitCoreResourceName = JUnitCore::class.java.name.replace('.', '/') + ".class"
-        val junitJar =
-            File(JUnitCore::class.java.classLoader.getResource(junitCoreResourceName).file.substringAfter("file:").substringBeforeLast('!'))
+        val junitJar = File(
+            JUnitCore::class.java.classLoader.getResource(junitCoreResourceName)!!.file
+                .substringAfter("file:")
+                .substringBeforeLast('!')
+        )
 
         val parcelizeRuntimeJars = System.getProperty("parcelizeRuntime.classpath")?.split(File.pathSeparator)?.map(::File)
             ?: error("Unable to get a valid classpath from 'parcelizeRuntime.classpath' property")
@@ -172,10 +176,10 @@ abstract class AbstractParcelizeBoxTest : CodegenTestCase() {
     override fun setupEnvironment(environment: KotlinCoreEnvironment) {
         ParcelizeComponentRegistrar.registerParcelizeComponents(environment.project)
         addParcelizeRuntimeLibrary(environment)
-        environment.updateClasspath(listOf(JvmClasspathRoot(layoutlibJar)))
+        environment.updateClasspath(listOf(JvmClasspathRoot(KotlinTestUtils.findAndroidApiJar())))
     }
 
     override fun updateJavaClasspath(javaClasspath: MutableList<String>) {
-        javaClasspath += layoutlibJar.path
+        javaClasspath += KotlinTestUtils.findAndroidApiJar().absolutePath
     }
 }
