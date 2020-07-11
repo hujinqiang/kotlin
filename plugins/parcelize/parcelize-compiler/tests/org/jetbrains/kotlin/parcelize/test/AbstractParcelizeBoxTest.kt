@@ -103,11 +103,6 @@ abstract class AbstractParcelizeBoxTest : CodegenTestCase() {
         }
     }
 
-    private val androidPluginPath: String by lazy {
-        System.getProperty("ideaSdk.androidPlugin.path")?.takeIf { File(it).isDirectory }
-            ?: throw RuntimeException("Unable to get a valid path from 'ideaSdk.androidPlugin.path' property, please point it to the Idea android plugin location")
-    }
-
     private fun getClasspathForTest(): List<File> {
         val kotlinRuntimeJar = PathUtil.kotlinPathsForIdeaPlugin.stdlibPath
 
