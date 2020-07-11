@@ -84,7 +84,9 @@ class FirTypeIntersectionScope private constructor(
 
         membersByScope.singleOrNull()?.let { members ->
             for (member in members) {
-                overriddenSymbols[member] = listOf(member)
+                if (matchOverrides) {
+                    overriddenSymbols[member] = listOf(member)
+                }
                 processor(member)
             }
 
@@ -98,8 +100,8 @@ class FirTypeIntersectionScope private constructor(
             val extractedOverrides = extractBothWaysOverridable(maxByVisibility, allMembers)
 
             val mostSpecific = selectMostSpecificMember(extractedOverrides)
-            overriddenSymbols[mostSpecific] = extractedOverrides
             if (matchOverrides) {
+                overriddenSymbols[mostSpecific] = extractedOverrides
                 processor(mostSpecific)
             } else {
                 extractedOverrides.forEach { processor(it) }
@@ -251,17 +253,21 @@ class FirTypeIntersectionScope private constructor(
         functionSymbol: FirFunctionSymbol<*>,
         processor: (FirFunctionSymbol<*>, Int) -> ProcessorAction
     ): ProcessorAction {
-        for (directOverridden in getDirectOverriddenSymbols(functionSymbol)) {
-            if (!processor(directOverridden, 0)) return ProcessorAction.STOP
-            // TODO: Preserve the scope where directOverridden came from
-            for (scope in scopes) {
-                if (!scope.processOverriddenFunctionsWithDepth(directOverridden) { symbol, depth ->
-                        processor(symbol, depth)
-                    }
-                ) return ProcessorAction.STOP
+        for (scope in scopes) {
+            if (!scope.processOverriddenFunctionsWithDepth(functionSymbol, processor)) return ProcessorAction.STOP
+        }
+        if (functionSymbol is FirNamedFunctionSymbol && functionSymbol.isFakeOverride) {
+            for (directOverridden in getDirectOverriddenSymbols(functionSymbol)) {
+                if (!processor(directOverridden, 0)) return ProcessorAction.STOP
+                // TODO: Preserve the scope where directOverridden came from
+                for (scope in scopes) {
+                    if (!scope.processOverriddenFunctionsWithDepth(directOverridden) { symbol, depth ->
+                            processor(symbol, depth)
+                        }
+                    ) return ProcessorAction.STOP
+                }
             }
         }
-
         return ProcessorAction.NEXT
     }
 
