@@ -37,8 +37,14 @@ abstract class AbstractParcelizeBoxTest : CodegenTestCase() {
                 ?: throw RuntimeException("Unable to get a valid path from 'ideaSdk.androidPlugin.path' property, please point it to the Idea android plugin location")
         }
 
-        val layoutlibJar: File by lazy { File(androidPluginPath, "layoutlib-26.5.0.2.jar") }
-        val layoutlibApiJar: File by lazy { File(androidPluginPath, "layoutlib-api-26.5.0.jar") }
+        private fun getLayoutLibFile(name: String): File {
+            val file = File(androidPluginPath, name)
+            assert(file.exists()) { "File not found: $file" }
+            return file
+        }
+
+        val layoutlibJar: File by lazy { getLayoutLibFile("layoutlib-26.5.0.2.jar") }
+        val layoutlibApiJar: File by lazy { getLayoutLibFile("layoutlib-api-26.5.0.jar") }
 
         private val JUNIT_GENERATED_TEST_CLASS_BYTES by lazy { constructSyntheticTestClass() }
         private const val JUNIT_GENERATED_TEST_CLASS_FQNAME = "test.JunitTest"
