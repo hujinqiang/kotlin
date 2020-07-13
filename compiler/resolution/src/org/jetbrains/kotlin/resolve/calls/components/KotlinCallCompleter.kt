@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.UnwrappedType
 import org.jetbrains.kotlin.types.model.safeSubstitute
 import org.jetbrains.kotlin.utils.addToStdlib.same
+import org.jetbrains.kotlin.utils.keysToMap
 
 class KotlinCallCompleter(
     private val postponedArgumentsAnalyzer: PostponedArgumentsAnalyzer,
@@ -101,11 +102,8 @@ class KotlinCallCompleter(
             return candidates
         }
 
-        val newAtoms = mutableMapOf<KotlinResolutionCandidate, ResolvedLambdaAtom>()
-        for ((candidate, atom) in lambdas.entries) {
-            val newAtom = kotlinConstraintSystemCompleter.prepareLambdaAtomForFactoryPattern(atom, candidate, candidate)
-            newAtoms[candidate] = newAtom
-            candidate.addResolvedKtPrimitive(newAtom)
+        val newAtoms = lambdas.mapValues { (candidate, atom) ->
+            kotlinConstraintSystemCompleter.prepareLambdaAtomForFactoryPattern(atom, candidate, candidate)
         }
 
         val diagnosticHolderForLambda = KotlinDiagnosticsHolder.SimpleHolder()
