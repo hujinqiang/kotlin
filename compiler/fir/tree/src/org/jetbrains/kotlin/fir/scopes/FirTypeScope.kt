@@ -50,9 +50,7 @@ abstract class FirTypeScope : FirScope() {
         directOverriddenMap: Map<FirFunctionSymbol<*>, Collection<FirFunctionSymbol<*>>>,
         baseScope: FirTypeScope
     ): ProcessorAction {
-        val directOverridden =
-            directOverriddenMap[functionSymbol] ?: return baseScope.processOverriddenFunctionsWithDepth(functionSymbol, processor)
-
+        val directOverridden = directOverriddenMap[functionSymbol].orEmpty()
         for (overridden in directOverridden) {
             val overriddenDepth = if (overridden is FirNamedFunctionSymbol && overridden.isFakeOverride) 0 else 1
             if (!processor(overridden, overriddenDepth)) return ProcessorAction.STOP
