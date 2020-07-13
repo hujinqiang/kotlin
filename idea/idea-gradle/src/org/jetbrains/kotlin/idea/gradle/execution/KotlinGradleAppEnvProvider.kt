@@ -89,7 +89,6 @@ class KotlinGradleAppEnvProvider : GradleExecutionEnvironmentProvider {
 
         val taskSettings = ExternalSystemTaskExecutionSettings().apply {
             isPassParentEnvs = params.isPassParentEnvs
-            isPassParentEnvs = params.isPassParentEnvs
             env = if (params.env.isEmpty()) emptyMap() else THashMap(params.env)
             externalSystemIdString = GradleConstants.SYSTEM_ID.id
             externalProjectPath = GradleRunnerUtil.resolveProjectPath(module)
