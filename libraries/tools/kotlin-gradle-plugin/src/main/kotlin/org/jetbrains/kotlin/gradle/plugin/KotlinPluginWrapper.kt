@@ -26,6 +26,7 @@ import org.gradle.api.logging.Logging
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMetadataTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMultiplatformPlugin
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultKotlinSourceSetFactory
@@ -60,6 +61,10 @@ abstract class KotlinBasePluginWrapper(
 
         checkGradleCompatibility()
 
+        project.gradle.projectsEvaluated {
+            whenBuildEvaluated(project)
+        }
+
         project.configurations.maybeCreate(COMPILER_CLASSPATH_CONFIGURATION_NAME).defaultDependencies {
             it.add(project.dependencies.create("$KOTLIN_MODULE_GROUP:$KOTLIN_COMPILER_EMBEDDABLE:$kotlinPluginVersion"))
         }
@@ -93,6 +98,9 @@ abstract class KotlinBasePluginWrapper(
         plugin.apply(project)
 
         project.addNpmDependencyExtension()
+    }
+
+    open fun whenBuildEvaluated(project: Project) {
     }
 
     internal open fun createTestRegistry(project: Project) = KotlinTestsRegistry(project)
@@ -163,6 +171,27 @@ open class KotlinJsPluginWrapper @Inject constructor(
     override val projectExtensionClass: KClass<out KotlinJsProjectExtension>
         get() = KotlinJsProjectExtension::class
 
+    override fun whenBuildEvaluated(project: Project) {
+        val isJsTargetUninitialized = (project.kotlinExtension as KotlinJsProjectExtension)
+            ._target == null
+
+        if (isJsTargetUninitialized) {
+            error(
+                """
+                Please initialize the Kotlin/JS target in '${project.name} (${project.path})'. Use:
+                kotlin {
+                    js {
+                        // To build distributions for and run tests on browser or Node.js use one or both of:
+                        browser()
+                        nodejs()
+                    }
+                }
+                Read more https://kotlinlang.org/docs/reference/js-project-setup.html
+                """.trimIndent()
+            )
+        }
+    }
+
     override fun createTestRegistry(project: Project) = KotlinTestsRegistry(project, "test")
 }
 
@@ -178,6 +207,21 @@ open class KotlinMultiplatformPluginWrapper @Inject constructor(
 
     override val projectExtensionClass: KClass<out KotlinMultiplatformExtension>
         get() = KotlinMultiplatformExtension::class
+
+    override fun whenBuildEvaluated(project: Project) {
+        val isNoTargetsInitialized = (project.kotlinExtension as KotlinMultiplatformExtension)
+            .targets
+            .none { it !is KotlinMetadataTarget }
+
+        if (isNoTargetsInitialized) {
+            error(
+                """
+                Please initialize at least one Kotlin target in '${project.name} (${project.path})'.
+                Read more https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html#setting-up-a-multiplatform-project
+                """.trimIndent()
+            )
+        }
+    }
 }
 
 fun Project.getKotlinPluginVersion(): String? =
