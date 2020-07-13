@@ -85,7 +85,8 @@ class KotlinGradleAppEnvProvider : GradleExecutionEnvironmentProvider {
             throw RuntimeException(ExecutionBundle.message("run.configuration.cannot.find.vm.executable"))
         }
 
-        val runAppTaskName = mainClass.name!! + ".main()"
+        val className = mainClass.name ?: return null
+        val runAppTaskName = "$className.main()"
 
         val taskSettings = ExternalSystemTaskExecutionSettings().apply {
             isPassParentEnvs = params.isPassParentEnvs
@@ -98,7 +99,7 @@ class KotlinGradleAppEnvProvider : GradleExecutionEnvironmentProvider {
         val executorId = executor?.id ?: DefaultRunExecutor.EXECUTOR_ID
         val environment = ExternalSystemUtil.createExecutionEnvironment(project, GradleConstants.SYSTEM_ID, taskSettings, executorId)
             ?: return null
-        val runnerAndConfigurationSettings = environment.runnerAndConfigurationSettings!!
+        val runnerAndConfigurationSettings = environment.runnerAndConfigurationSettings ?: return null
         val gradleRunConfiguration = runnerAndConfigurationSettings.configuration as ExternalSystemRunConfiguration
 
         val gradlePath = GradleProjectResolverUtil.getGradlePath(module) ?: return null
