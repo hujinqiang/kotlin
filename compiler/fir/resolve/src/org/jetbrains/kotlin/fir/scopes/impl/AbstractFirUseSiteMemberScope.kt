@@ -85,7 +85,7 @@ abstract class AbstractFirUseSiteMemberScope(
         if (firSimpleFunction.valueParameters.isEmpty() || firSimpleFunction.valueParameters.any { it.defaultValue != null }) return symbol
 
         val overriddenWithDefault: FirFunction<*> =
-            directOverridden.singleOrNull {
+            directOverridden.firstOrNull {
                 it.fir.valueParameters.any { parameter -> parameter.defaultValue != null }
             }?.fir ?: return symbol
 
