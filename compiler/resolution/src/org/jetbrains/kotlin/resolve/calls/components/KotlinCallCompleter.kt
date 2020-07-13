@@ -105,7 +105,6 @@ class KotlinCallCompleter(
         for ((candidate, atom) in lambdas.entries) {
             val newAtom = kotlinConstraintSystemCompleter.prepareLambdaAtomForFactoryPattern(atom, candidate, candidate)
             newAtoms[candidate] = newAtom
-            candidate.addResolvedKtPrimitive(newAtom)
         }
 
         val diagnosticHolderForLambda = KotlinDiagnosticsHolder.SimpleHolder()
