@@ -328,6 +328,11 @@ public class IrTextTestCaseGenerated extends AbstractIrTextTestCase {
             runTest("compiler/testData/ir/irText/declarations/kt35550.kt");
         }
 
+        @TestMetadata("kt36188.kt")
+        public void testKt36188() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/kt36188.kt");
+        }
+
         @TestMetadata("localClassWithOverrides.kt")
         public void testLocalClassWithOverrides() throws Exception {
             runTest("compiler/testData/ir/irText/declarations/localClassWithOverrides.kt");
