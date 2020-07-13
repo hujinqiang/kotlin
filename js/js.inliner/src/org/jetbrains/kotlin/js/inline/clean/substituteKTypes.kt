@@ -12,14 +12,16 @@ import org.jetbrains.kotlin.js.backend.ast.metadata.*
 fun substituteKTypes(root: JsNode) {
     val visitor = object : JsVisitorWithContextImpl() {
         override fun endVisit(invocation: JsInvocation, ctx: JsContext<in JsNode>) {
-            // See KT-40173
-            if (invocation.kTypeWithRecursion) TODO("Non-reified type parameters with recursive bounds are not supported yet")
+            // for invocations from non-inline contexts
+            invocation.checkDoesNotCreateRecursiveKType()
 
             val qualifier = invocation.qualifier as? JsNameRef ?: return
             if (qualifier.name?.specialFunction != SpecialFunction.GET_REIFIED_TYPE_PARAMETER_KTYPE) return
 
             val firstArg = invocation.arguments.first()
             getTransitiveKType(firstArg)?.let {
+                // for invocations from inline contexts
+                it.checkNoInvocationsWithRecursiveKType()
                 ctx.replaceMe(it)
             }
         }
@@ -31,7 +33,7 @@ fun substituteKTypes(root: JsNode) {
 // kType metadata is set on jsClass expressions.
 // There can be a chain of local variables from jsClass to its usage.
 // This methods uses staticRef to find the original expression with kType metadata.
-fun getTransitiveKType(e: JsExpression): JsExpression? {
+private fun getTransitiveKType(e: JsExpression): JsExpression? {
     return when {
         e.kType != null ->
             e.kType
@@ -43,4 +45,18 @@ fun getTransitiveKType(e: JsExpression): JsExpression? {
 
         else -> null
     }
+}
+
+private fun JsExpression.checkNoInvocationsWithRecursiveKType() {
+    val visitor = object : JsVisitorWithContextImpl() {
+        override fun endVisit(invocation: JsInvocation, ctx: JsContext<in JsNode>) {
+            invocation.checkDoesNotCreateRecursiveKType()
+        }
+    }
+    visitor.accept(this)
+}
+
+private fun JsInvocation.checkDoesNotCreateRecursiveKType() {
+    // See KT-40173
+    if (kTypeWithRecursion) TODO("Non-reified type parameters with recursive bounds are not supported yet")
 }
