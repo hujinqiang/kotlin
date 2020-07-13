@@ -25,6 +25,11 @@ abstract class FirTypeScope : FirScope() {
         processor: (FirFunctionSymbol<*>, Int) -> ProcessorAction
     ): ProcessorAction
 
+    protected open fun processOverriddenFunctionsDeclaredInBaseClass(
+        functionSymbol: FirFunctionSymbol<*>,
+        processor: (FirFunctionSymbol<*>, Int) -> ProcessorAction
+    ): ProcessorAction = processOverriddenFunctionsWithDepth(functionSymbol, processor)
+
     inline fun processOverriddenFunctions(
         functionSymbol: FirFunctionSymbol<*>,
         crossinline processor: (FirFunctionSymbol<*>) -> ProcessorAction
@@ -54,7 +59,7 @@ abstract class FirTypeScope : FirScope() {
         for (overridden in directOverridden) {
             val overriddenDepth = if (overridden is FirNamedFunctionSymbol && overridden.isFakeOverride) 0 else 1
             if (!processor(overridden, overriddenDepth)) return ProcessorAction.STOP
-            if (!baseScope.processOverriddenFunctionsWithDepth(overridden) { symbol, depth ->
+            if (!baseScope.processOverriddenFunctionsDeclaredInBaseClass(overridden) { symbol, depth ->
                     processor(symbol, depth + overriddenDepth)
                 }
             ) return ProcessorAction.STOP
