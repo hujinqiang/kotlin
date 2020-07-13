@@ -34,7 +34,7 @@ fun box(): String {
     return "OK"
 }
 
-fun className(qulifier: String, name: String): String {
+fun className(qualifier: String, name: String): String {
     val isJS = 1 as Any is Double
-    return if (isJS) name else "$qulifier.$name"
+    return if (isJS) name else "$qualifier.$name"
 }
