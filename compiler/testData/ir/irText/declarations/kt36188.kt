@@ -11,3 +11,5 @@ interface B {
 class Impl : A2, B {
     override fun foo(a: String) = a
 }
+
+fun box(): String = Impl().foo()
