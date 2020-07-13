@@ -22383,9 +22383,14 @@ public class JsCodegenBoxTestGenerated extends AbstractJsCodegenBoxTest {
                     runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/innerGeneric.kt");
                 }
 
-                @TestMetadata("recursiveBound.kt")
-                public void testRecursiveBound() throws Exception {
-                    runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/recursiveBound.kt");
+                @TestMetadata("recursiveBoundWithInline.kt")
+                public void testRecursiveBoundWithInline() throws Exception {
+                    runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/recursiveBoundWithInline.kt");
+                }
+
+                @TestMetadata("recursiveBoundWithoutInline.kt")
+                public void testRecursiveBoundWithoutInline() throws Exception {
+                    runTest("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters/recursiveBoundWithoutInline.kt");
                 }
 
                 @TestMetadata("simpleClassParameter.kt")
