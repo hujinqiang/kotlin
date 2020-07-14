@@ -314,6 +314,11 @@ public class Fir2IrTextTestGenerated extends AbstractFir2IrTextTest {
             runTest("compiler/testData/ir/irText/declarations/interfaceProperties.kt");
         }
 
+        @TestMetadata("kt15971.kt")
+        public void testKt15971() throws Exception {
+            runTest("compiler/testData/ir/irText/declarations/kt15971.kt");
+        }
+
         @TestMetadata("kt27005.kt")
         public void testKt27005() throws Exception {
             runTest("compiler/testData/ir/irText/declarations/kt27005.kt");
