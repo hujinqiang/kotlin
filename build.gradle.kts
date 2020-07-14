@@ -683,6 +683,8 @@ tasks {
         dependsOn(":core:descriptors.runtime:test")
 
         dependsOn("jvmCompilerIntegrationTest")
+
+        dependsOn(":plugins:parcelize:parcelize-compiler:test")
     }
 
     register("toolsTest") {
@@ -788,7 +790,6 @@ tasks {
             ":kotlin-annotation-processing-gradle:test",
             ":kotlinx-serialization-compiler-plugin:test",
             ":kotlinx-serialization-ide-plugin:test",
-            ":plugins:parcelize:parcelize-compiler:test",
             ":plugins:parcelize:parcelize-ide:test",
             ":idea:jvm-debugger:jvm-debugger-test:test"
         )
