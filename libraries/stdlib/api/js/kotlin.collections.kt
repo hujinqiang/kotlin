@@ -1095,7 +1095,7 @@ public fun <T> kotlin.Array<out T>.contentDeepToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun <T> kotlin.Array<out T>?.contentDeepToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use Array<T>?.contentEquals(other: Array<T>?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun <T> kotlin.Array<out T>.contentEquals(other: kotlin.Array<out T>): kotlin.Boolean
@@ -1103,7 +1103,7 @@ public infix fun <T> kotlin.Array<out T>.contentEquals(other: kotlin.Array<out T
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun <T> kotlin.Array<out T>?.contentEquals(other: kotlin.Array<out T>?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use BooleanArray?.contentEquals(other: BooleanArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.BooleanArray.contentEquals(other: kotlin.BooleanArray): kotlin.Boolean
@@ -1111,7 +1111,7 @@ public infix fun kotlin.BooleanArray.contentEquals(other: kotlin.BooleanArray): 
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.BooleanArray?.contentEquals(other: kotlin.BooleanArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use ByteArray?.contentEquals(other: ByteArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.ByteArray.contentEquals(other: kotlin.ByteArray): kotlin.Boolean
@@ -1119,7 +1119,7 @@ public infix fun kotlin.ByteArray.contentEquals(other: kotlin.ByteArray): kotlin
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.ByteArray?.contentEquals(other: kotlin.ByteArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use CharArray?.contentEquals(other: CharArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.CharArray.contentEquals(other: kotlin.CharArray): kotlin.Boolean
@@ -1127,7 +1127,7 @@ public infix fun kotlin.CharArray.contentEquals(other: kotlin.CharArray): kotlin
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.CharArray?.contentEquals(other: kotlin.CharArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use DoubleArray?.contentEquals(other: DoubleArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.DoubleArray.contentEquals(other: kotlin.DoubleArray): kotlin.Boolean
@@ -1135,7 +1135,7 @@ public infix fun kotlin.DoubleArray.contentEquals(other: kotlin.DoubleArray): ko
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.DoubleArray?.contentEquals(other: kotlin.DoubleArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use FloatArray?.contentEquals(other: FloatArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.FloatArray.contentEquals(other: kotlin.FloatArray): kotlin.Boolean
@@ -1143,7 +1143,7 @@ public infix fun kotlin.FloatArray.contentEquals(other: kotlin.FloatArray): kotl
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.FloatArray?.contentEquals(other: kotlin.FloatArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use IntArray?.contentEquals(other: IntArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.IntArray.contentEquals(other: kotlin.IntArray): kotlin.Boolean
@@ -1151,7 +1151,7 @@ public infix fun kotlin.IntArray.contentEquals(other: kotlin.IntArray): kotlin.B
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.IntArray?.contentEquals(other: kotlin.IntArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use LongArray?.contentEquals(other: LongArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.LongArray.contentEquals(other: kotlin.LongArray): kotlin.Boolean
@@ -1159,7 +1159,7 @@ public infix fun kotlin.LongArray.contentEquals(other: kotlin.LongArray): kotlin
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.LongArray?.contentEquals(other: kotlin.LongArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use ShortArray?.contentEquals(other: ShortArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public infix fun kotlin.ShortArray.contentEquals(other: kotlin.ShortArray): kotlin.Boolean
@@ -1167,7 +1167,7 @@ public infix fun kotlin.ShortArray.contentEquals(other: kotlin.ShortArray): kotl
 @kotlin.SinceKotlin(version = "1.4")
 public infix fun kotlin.ShortArray?.contentEquals(other: kotlin.ShortArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use UByteArray?.contentEquals(other: UByteArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1177,7 +1177,7 @@ public infix fun kotlin.UByteArray.contentEquals(other: kotlin.UByteArray): kotl
 @kotlin.ExperimentalUnsignedTypes
 public infix fun kotlin.UByteArray?.contentEquals(other: kotlin.UByteArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use UIntArray?.contentEquals(other: UIntArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1187,7 +1187,7 @@ public infix fun kotlin.UIntArray.contentEquals(other: kotlin.UIntArray): kotlin
 @kotlin.ExperimentalUnsignedTypes
 public infix fun kotlin.UIntArray?.contentEquals(other: kotlin.UIntArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use ULongArray?.contentEquals(other: ULongArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1197,7 +1197,7 @@ public infix fun kotlin.ULongArray.contentEquals(other: kotlin.ULongArray): kotl
 @kotlin.ExperimentalUnsignedTypes
 public infix fun kotlin.ULongArray?.contentEquals(other: kotlin.ULongArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use UShortArray?.contentEquals(other: UShortArray?) instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1207,7 +1207,7 @@ public infix fun kotlin.UShortArray.contentEquals(other: kotlin.UShortArray): ko
 @kotlin.ExperimentalUnsignedTypes
 public infix fun kotlin.UShortArray?.contentEquals(other: kotlin.UShortArray?): kotlin.Boolean
 
-@kotlin.Deprecated(message = "Use Array<T>?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun <T> kotlin.Array<out T>.contentHashCode(): kotlin.Int
@@ -1215,7 +1215,7 @@ public fun <T> kotlin.Array<out T>.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun <T> kotlin.Array<out T>?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use BooleanArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.BooleanArray.contentHashCode(): kotlin.Int
@@ -1223,7 +1223,7 @@ public fun kotlin.BooleanArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.BooleanArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use ByteArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.ByteArray.contentHashCode(): kotlin.Int
@@ -1231,7 +1231,7 @@ public fun kotlin.ByteArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.ByteArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use CharArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.CharArray.contentHashCode(): kotlin.Int
@@ -1239,7 +1239,7 @@ public fun kotlin.CharArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.CharArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use DoubleArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.DoubleArray.contentHashCode(): kotlin.Int
@@ -1247,7 +1247,7 @@ public fun kotlin.DoubleArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.DoubleArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use FloatArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.FloatArray.contentHashCode(): kotlin.Int
@@ -1255,7 +1255,7 @@ public fun kotlin.FloatArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.FloatArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use IntArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.IntArray.contentHashCode(): kotlin.Int
@@ -1263,7 +1263,7 @@ public fun kotlin.IntArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.IntArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use LongArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.LongArray.contentHashCode(): kotlin.Int
@@ -1271,7 +1271,7 @@ public fun kotlin.LongArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.LongArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use ShortArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.ShortArray.contentHashCode(): kotlin.Int
@@ -1279,7 +1279,7 @@ public fun kotlin.ShortArray.contentHashCode(): kotlin.Int
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.ShortArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use UByteArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1289,7 +1289,7 @@ public fun kotlin.UByteArray.contentHashCode(): kotlin.Int
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.UByteArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use UIntArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1299,7 +1299,7 @@ public fun kotlin.UIntArray.contentHashCode(): kotlin.Int
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.UIntArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use ULongArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1309,7 +1309,7 @@ public fun kotlin.ULongArray.contentHashCode(): kotlin.Int
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.ULongArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use UShortArray?.contentHashCode() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1319,7 +1319,7 @@ public fun kotlin.UShortArray.contentHashCode(): kotlin.Int
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.UShortArray?.contentHashCode(): kotlin.Int
 
-@kotlin.Deprecated(message = "Use Array<T>?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun <T> kotlin.Array<out T>.contentToString(): kotlin.String
@@ -1327,7 +1327,7 @@ public fun <T> kotlin.Array<out T>.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun <T> kotlin.Array<out T>?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use BooleanArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.BooleanArray.contentToString(): kotlin.String
@@ -1335,7 +1335,7 @@ public fun kotlin.BooleanArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.BooleanArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use ByteArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.ByteArray.contentToString(): kotlin.String
@@ -1343,7 +1343,7 @@ public fun kotlin.ByteArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.ByteArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use CharArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.CharArray.contentToString(): kotlin.String
@@ -1351,7 +1351,7 @@ public fun kotlin.CharArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.CharArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use DoubleArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.DoubleArray.contentToString(): kotlin.String
@@ -1359,7 +1359,7 @@ public fun kotlin.DoubleArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.DoubleArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use FloatArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.FloatArray.contentToString(): kotlin.String
@@ -1367,7 +1367,7 @@ public fun kotlin.FloatArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.FloatArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use IntArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.IntArray.contentToString(): kotlin.String
@@ -1375,7 +1375,7 @@ public fun kotlin.IntArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.IntArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use LongArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.LongArray.contentToString(): kotlin.String
@@ -1383,7 +1383,7 @@ public fun kotlin.LongArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.LongArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use ShortArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.1")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 public fun kotlin.ShortArray.contentToString(): kotlin.String
@@ -1391,7 +1391,7 @@ public fun kotlin.ShortArray.contentToString(): kotlin.String
 @kotlin.SinceKotlin(version = "1.4")
 public fun kotlin.ShortArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use UByteArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1401,7 +1401,7 @@ public fun kotlin.UByteArray.contentToString(): kotlin.String
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.UByteArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use UIntArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1411,7 +1411,7 @@ public fun kotlin.UIntArray.contentToString(): kotlin.String
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.UIntArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use ULongArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes
@@ -1421,7 +1421,7 @@ public fun kotlin.ULongArray.contentToString(): kotlin.String
 @kotlin.ExperimentalUnsignedTypes
 public fun kotlin.ULongArray?.contentToString(): kotlin.String
 
-@kotlin.Deprecated(message = "Use UShortArray?.contentToString() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.SinceKotlin(version = "1.3")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.ExperimentalUnsignedTypes

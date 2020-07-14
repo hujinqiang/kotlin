@@ -3194,7 +3194,7 @@ public inline fun ShortArray.asUShortArray(): UShortArray {
  * Returns `true` if the two specified arrays are *structurally* equal to one another,
  * i.e. contain the same number of the same elements in the same order.
  */
-@Deprecated("Use UIntArray?.contentEquals(other: UIntArray?) instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3206,7 +3206,7 @@ public infix fun UIntArray.contentEquals(other: UIntArray): Boolean {
  * Returns `true` if the two specified arrays are *structurally* equal to one another,
  * i.e. contain the same number of the same elements in the same order.
  */
-@Deprecated("Use ULongArray?.contentEquals(other: ULongArray?) instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3218,7 +3218,7 @@ public infix fun ULongArray.contentEquals(other: ULongArray): Boolean {
  * Returns `true` if the two specified arrays are *structurally* equal to one another,
  * i.e. contain the same number of the same elements in the same order.
  */
-@Deprecated("Use UByteArray?.contentEquals(other: UByteArray?) instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3230,7 +3230,7 @@ public infix fun UByteArray.contentEquals(other: UByteArray): Boolean {
  * Returns `true` if the two specified arrays are *structurally* equal to one another,
  * i.e. contain the same number of the same elements in the same order.
  */
-@Deprecated("Use UShortArray?.contentEquals(other: UShortArray?) instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3281,7 +3281,7 @@ public infix fun UShortArray?.contentEquals(other: UShortArray?): Boolean {
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@Deprecated("Use UIntArray?.contentHashCode() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3292,7 +3292,7 @@ public fun UIntArray.contentHashCode(): Int {
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@Deprecated("Use ULongArray?.contentHashCode() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3303,7 +3303,7 @@ public fun ULongArray.contentHashCode(): Int {
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@Deprecated("Use UByteArray?.contentHashCode() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3314,7 +3314,7 @@ public fun UByteArray.contentHashCode(): Int {
 /**
  * Returns a hash code based on the contents of this array as if it is [List].
  */
-@Deprecated("Use UShortArray?.contentHashCode() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3363,7 +3363,7 @@ public fun UShortArray?.contentHashCode(): Int {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@Deprecated("Use UIntArray?.contentToString() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3376,7 +3376,7 @@ public fun UIntArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@Deprecated("Use ULongArray?.contentToString() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3389,7 +3389,7 @@ public fun ULongArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@Deprecated("Use UByteArray?.contentToString() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes
@@ -3402,7 +3402,7 @@ public fun UByteArray.contentToString(): String {
  * 
  * @sample samples.collections.Arrays.ContentOperations.contentToString
  */
-@Deprecated("Use UShortArray?.contentToString() instead.", ReplaceWith(""))
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @SinceKotlin("1.3")
 @DeprecatedSinceKotlin(hiddenSince = "1.4")
 @ExperimentalUnsignedTypes

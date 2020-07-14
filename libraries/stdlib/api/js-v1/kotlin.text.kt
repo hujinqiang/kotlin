@@ -835,7 +835,7 @@ public inline fun kotlin.CharSequence.takeWhile(predicate: (kotlin.Char) -> kotl
 
 public inline fun kotlin.String.takeWhile(predicate: (kotlin.Char) -> kotlin.Boolean): kotlin.String
 
-@kotlin.Deprecated(message = "Use String?.toBoolean() instead.", replaceWith = kotlin.ReplaceWith(expression = "", imports = {}))
+@kotlin.Deprecated(message = "Use Kotlin compiler 1.4 to avoid deprecation warning.")
 @kotlin.DeprecatedSinceKotlin(hiddenSince = "1.4")
 @kotlin.internal.InlineOnly
 public inline fun kotlin.String.toBoolean(): kotlin.Boolean

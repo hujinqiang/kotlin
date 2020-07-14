@@ -82,10 +82,8 @@ object ArrayOps : TemplateGroupBase() {
         }
     }
 
-    private fun MemberBuilder.deprecatedNonNullArrayFunction(name: String, takesSelfArgument: Boolean = false) {
-        val receiver = primitive?.let { it.name + "Array?" } ?: "Array<T>?"
-        val argument = "other: $receiver".ifOrEmpty(takesSelfArgument)
-        deprecate(Deprecation("Use $receiver.$name($argument) instead.", replaceWith = ""))
+    private fun MemberBuilder.deprecatedNonNullArrayFunction() {
+        deprecate("Use Kotlin compiler 1.4 to avoid deprecation warning.")
         annotation("""@DeprecatedSinceKotlin(hiddenSince = "1.4")""")
     }
 
@@ -93,7 +91,7 @@ object ArrayOps : TemplateGroupBase() {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        deprecatedNonNullArrayFunction("contentEquals", takesSelfArgument = true)
+        deprecatedNonNullArrayFunction()
         infix(true)
         doc {
             """
@@ -254,7 +252,7 @@ object ArrayOps : TemplateGroupBase() {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        deprecatedNonNullArrayFunction("contentToString")
+        deprecatedNonNullArrayFunction()
         doc {
             """
             Returns a string representation of the contents of the specified array as if it is [List].
@@ -376,7 +374,7 @@ object ArrayOps : TemplateGroupBase() {
         include(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         since("1.1")
-        deprecatedNonNullArrayFunction("contentHashCode")
+        deprecatedNonNullArrayFunction()
         doc {
             "Returns a hash code based on the contents of this array as if it is [List]."
         }
