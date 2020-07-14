@@ -181,7 +181,7 @@ open class KotlinJsPluginWrapper @Inject constructor(
                 Please initialize the Kotlin/JS target in '${project.name} (${project.path})'. Use:
                 kotlin {
                     js {
-                        // To build distributions for and run tests on browser or Node.js use one or both of:
+                        // To build distributions and run tests for browser or Node.js use one or both of:
                         browser()
                         nodejs()
                     }
