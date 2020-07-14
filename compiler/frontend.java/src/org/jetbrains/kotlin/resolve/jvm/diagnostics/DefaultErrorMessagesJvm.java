@@ -166,6 +166,12 @@ public class DefaultErrorMessagesJvm implements DefaultErrorMessages.Extension {
                 "Please refer to KT-39603 for details",
                 COMPACT, SHORT_NAMES_IN_TYPES);
 
+        MAP.put(EXPLICIT_OVERRIDE_REQUIRED_IN_MIXED_MODE,
+                "Explicit override is required for ''{0}'' member." +
+                "Your class is part of mixed hierarchy (with -Xjvm-default=disabled and -Xjvm-default=enable|all|all-compatibility)." +
+                "Member ''{0}'' clashes with implicit class override ''{1}'' that has more priority on runtime.",
+                COMPACT, SHORT_NAMES_IN_TYPES);
+
         MAP.put(DANGEROUS_CHARACTERS, "Name contains characters which can cause problems on Windows: {0}", STRING);
     }
 

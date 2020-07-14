@@ -1,29 +1,22 @@
 open class SuperBase
 
 open class Base : SuperBase() {
-    fun test(base: Base) {
-        testSuper(base)
-    }
 
-    fun testSuper(base: SuperBase) {
-
-    }
 }
 
-open class Derived : Base()
+open class Derived : Base() {
+    protected fun <T : Base> T.transformChildren() {
 
-fun Base.testExt(base: Base) {
-    testExtSuper(base)
-}
+    }
 
-fun SuperBase.testExtSuper(base: SuperBase) {
+    fun genericTest(derived: Derived) {
+        derived.transformChildren()
+    }
 
 }
 
 
 fun test() {
-    Derived().test(Derived())
-    Derived().testExt(Derived())
 }
 
 // JVM_TEMPLATES:
