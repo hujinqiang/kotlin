@@ -21,8 +21,8 @@ class FirSyntheticPropertyBuilder {
     var delegateSetter: FirSimpleFunction? = null
 
     fun build(): FirSyntheticProperty = FirSyntheticProperty(
-        session, delegateGetter.returnTypeRef, name, isVar = delegateSetter != null, symbol = symbol,
-        status = FirDeclarationStatusImpl(delegateGetter.visibility, delegateGetter.modality),
+        session, name, isVar = delegateSetter != null, symbol = symbol,
+        status = delegateGetter.status,
         resolvePhase = delegateGetter.resolvePhase,
         getter = FirSyntheticPropertyAccessor(delegateGetter, isGetter = true),
         setter = delegateSetter?.let { FirSyntheticPropertyAccessor(it, isGetter = false) }

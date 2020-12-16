@@ -11,9 +11,11 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
-import org.jetbrains.kotlin.ir.backend.js.lower.ES6AddInternalParametersToConstructorPhase.*
-import org.jetbrains.kotlin.ir.backend.js.lower.PrimaryConstructorLowering.*
+import org.jetbrains.kotlin.ir.backend.js.lower.ES6AddInternalParametersToConstructorPhase.ES6_INIT_BOX_PARAMETER
+import org.jetbrains.kotlin.ir.backend.js.lower.ES6AddInternalParametersToConstructorPhase.ES6_RESULT_TYPE_PARAMETER
+import org.jetbrains.kotlin.ir.backend.js.lower.PrimaryConstructorLowering.SYNTHETIC_PRIMARY_CONSTRUCTOR
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
+import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
@@ -24,6 +26,7 @@ import org.jetbrains.kotlin.ir.types.isAny
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.name.Name
 
 object ES6_THIS_VARIABLE_ORIGIN : IrDeclarationOriginImpl("ES6_THIS_VARIABLE_ORIGIN")
 
@@ -314,7 +317,7 @@ class ES6ConstructorLowering(val context: JsIrBackendContext) : BodyLoweringPass
             if (superCall.symbol.owner.valueParameters[i].origin === ES6_INIT_BOX_PARAMETER) {
                 result += JsIrBuilder.buildGetValue(boxSymbol!!)
             } else {
-                if (arg.type.getInlinedClass() != null) {
+                if (context.inlineClassesUtils.getInlinedClass(arg.type) != null) {
                     val any = context.irBuiltIns.anyNType
                     result += JsIrBuilder.buildTypeOperator(any, IrTypeOperator.REINTERPRET_CAST, arg, any)
                 } else {
@@ -383,7 +386,7 @@ private fun replaceCallToDefaultPrimary(context: JsIrBackendContext, constructor
     val thisSymbol = (((constructor.body as IrBlockBody).statements
         .find { it is IrVariable && it.origin === ES6_THIS_VARIABLE_ORIGIN }) as IrVariable?)?.symbol ?: return
 
-    (constructor.body as IrBlockBody).statements.transform {
+    (constructor.body as IrBlockBody).statements.transformInPlace {
         if (it is IrDelegatingConstructorCall) {
             val superCtor = it.symbol.owner
             val initFunc = context.mapping.constructorToInitFunction[superCtor]!!
@@ -498,7 +501,7 @@ private class LowerCtorHelper(
             origin = ES6_THIS_VARIABLE_ORIGIN
         }
 
-        (constructor.body as IrBlockBody).statements.transform {
+        (constructor.body as IrBlockBody).statements.transformInPlace {
             if (it === superCall) newThis
             else it
         }
@@ -538,11 +541,12 @@ private fun getSuperCall(constructor: IrConstructor): IrDelegatingConstructorCal
 }
 
 private fun changeIrConstructorToIrFunction(context: JsIrBackendContext, container: IrConstructor) {
-    val newConstructor = JsIrBuilder.buildFunction(
-        "${container.parentAsClass.name}_constructor",
-        container.returnType,
-        container.parent
-    ).apply {
+    val newConstructor = context.irFactory.buildFun {
+        name = Name.identifier("${container.parentAsClass.name}_constructor")
+        returnType = container.returnType
+        origin = JsIrBuilder.SYNTHESIZED_DECLARATION
+    }.apply {
+        parent = container.parent
         container.valueParameters.forEach { param ->
             addValueParameter(param.name.asString(), param.type, param.origin)
         }
@@ -557,7 +561,7 @@ private fun changeIrConstructorToIrFunction(context: JsIrBackendContext, contain
         }, null)
     }
 
-    container.parentAsClass.declarations.transform {
+    container.parentAsClass.declarations.transformInPlace {
         if (it === container) newConstructor else it
     }
 

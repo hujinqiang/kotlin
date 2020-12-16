@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.idea.test
 
 import com.intellij.application.options.CodeStyle
+import com.intellij.codeInsight.daemon.impl.EditorTracker
 import com.intellij.ide.highlighter.JavaFileType
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -23,6 +24,7 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.newvfs.impl.VfsRootAccess
 import com.intellij.pom.java.LanguageLevel
 import com.intellij.psi.PsiClassOwner
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleSettings
@@ -55,8 +57,10 @@ import java.io.File
 import java.io.IOException
 import java.util.*
 import kotlin.reflect.full.findAnnotation
+import java.nio.file.Path
 
 abstract class KotlinLightCodeInsightFixtureTestCase : KotlinLightCodeInsightFixtureTestCaseBase() {
+
     private val exceptions = ArrayList<Throwable>()
 
     protected open val captureExceptions = true
@@ -64,6 +68,8 @@ abstract class KotlinLightCodeInsightFixtureTestCase : KotlinLightCodeInsightFix
     protected fun testDataFile(fileName: String): File = File(testDataPath, fileName)
 
     protected fun testDataFile(): File = testDataFile(fileName())
+
+    protected fun testDataFilePath(): Path = testDataFile().toPath()
 
     protected fun testPath(fileName: String = fileName()): String = testDataFile(fileName).toString()
 
@@ -91,7 +97,7 @@ abstract class KotlinLightCodeInsightFixtureTestCase : KotlinLightCodeInsightFix
         runPostStartupActivitiesOnce(project)
         VfsRootAccess.allowRootAccess(project, KotlinTestUtils.getHomeDirectory())
 
-        editorTrackerProjectOpened(project)
+        EditorTracker.getInstance(project)
 
         if (!isFirPlugin) {
             invalidateLibraryCache(project)

@@ -219,11 +219,22 @@ class Flag(private val offset: Int, private val bitWidth: Int, private val value
      * A container of flags applicable to Kotlin constructors.
      */
     object Constructor {
+        @JvmField
+        @Deprecated("Use IS_SECONDARY which holds inverted value instead.", level = DeprecationLevel.ERROR)
+        @Suppress("unused")
+        val IS_PRIMARY = Flag(F.IS_SECONDARY, 0)
+
         /**
-         * Signifies that the corresponding constructor is primary, i.e. declared in the class header, not in the class body.
+         * Signifies that the corresponding constructor is secondary, i.e. declared not in the class header, but in the class body.
          */
         @JvmField
-        val IS_PRIMARY = Flag(F.IS_SECONDARY, 0)
+        val IS_SECONDARY = Flag(F.IS_SECONDARY)
+
+        /**
+         * Signifies that the corresponding constructor has non-stable parameter names, i.e. cannot be called with named arguments.
+         */
+        @JvmField
+        val HAS_NON_STABLE_PARAMETER_NAMES = Flag(F.IS_CONSTRUCTOR_WITH_NON_STABLE_PARAMETER_NAMES)
     }
 
     /**
@@ -302,6 +313,12 @@ class Flag(private val offset: Int, private val bitWidth: Int, private val value
          */
         @JvmField
         val IS_EXPECT = Flag(F.IS_EXPECT_FUNCTION)
+
+        /**
+         * Signifies that the corresponding function has non-stable parameter names, i.e. cannot be called with named arguments.
+         */
+        @JvmField
+        val HAS_NON_STABLE_PARAMETER_NAMES = Flag(F.IS_FUNCTION_WITH_NON_STABLE_PARAMETER_NAMES)
     }
 
     /**

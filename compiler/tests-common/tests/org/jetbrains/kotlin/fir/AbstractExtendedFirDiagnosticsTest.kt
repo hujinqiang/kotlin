@@ -5,6 +5,11 @@
 
 package org.jetbrains.kotlin.fir
 
+import org.jetbrains.kotlin.fir.checkers.registerExtendedCommonCheckers
+import org.jetbrains.kotlin.fir.session.FirSessionFactory
+
 abstract class AbstractExtendedFirDiagnosticsTest : AbstractFirDiagnosticsTest() {
-    override fun useExtendedCheckersIfNeeded(): Boolean = true
+    override fun FirSessionFactory.FirSessionConfigurator.configureSession() {
+        registerExtendedCommonCheckers()
+    }
 }

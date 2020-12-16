@@ -281,14 +281,19 @@ inline fun <reified T : PsiElement> PsiElement.collectDescendantsOfType(noinline
 inline fun <reified T : PsiElement> PsiElement.collectDescendantsOfType(
     crossinline canGoInside: (PsiElement) -> Boolean,
     noinline predicate: (T) -> Boolean = { true }
-): List<T> {
-    val result = ArrayList<T>()
+): List<T> = collectDescendantsOfTypeTo(ArrayList(), canGoInside, predicate)
+
+inline fun <reified T : PsiElement, C : MutableCollection<T>> PsiElement.collectDescendantsOfTypeTo(
+    to: C,
+    crossinline canGoInside: (PsiElement) -> Boolean,
+    noinline predicate: (T) -> Boolean = { true }
+): C {
     forEachDescendantOfType<T>(canGoInside) {
         if (predicate(it)) {
-            result.add(it)
+            to.add(it)
         }
     }
-    return result
+    return to
 }
 
 // ----------- Working with offsets, ranges and texts ----------------------------------------------------------------------------------------------
@@ -446,6 +451,8 @@ fun KtModifierList.hasActualModifier() = hasModifier(KtTokens.IMPL_KEYWORD) || h
 fun KtModifierList.hasSuspendModifier() = hasModifier(KtTokens.SUSPEND_KEYWORD)
 
 fun KtModifierList.hasFunModifier() = hasModifier(KtTokens.FUN_KEYWORD)
+
+fun KtModifierList.hasValueModifier() = hasModifier(KtTokens.VALUE_KEYWORD)
 
 fun ASTNode.children() = generateSequence(firstChildNode) { node -> node.treeNext }
 fun ASTNode.parents() = generateSequence(treeParent) { node -> node.treeParent }

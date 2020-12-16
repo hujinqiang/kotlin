@@ -6,8 +6,6 @@
 package org.jetbrains.kotlin.fir.symbols
 
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.SourceElement
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.*
@@ -32,39 +30,34 @@ abstract class Fir2IrBindableSymbol<out D : DeclarationDescriptor, B : IrSymbolO
         }
     }
 
-    override val isPublicApi: Boolean = true
-
     override val isBound: Boolean
         get() = _owner != null
 
     @ObsoleteDescriptorBasedAPI
     override val descriptor: D by lazy {
-        when (val owner = owner) {
+        val result = when (val owner = owner) {
             is IrEnumEntry -> WrappedEnumEntryDescriptor().apply { bind(owner) }
             is IrClass -> WrappedClassDescriptor().apply { bind(owner) }
             is IrConstructor -> WrappedClassConstructorDescriptor().apply { bind(owner) }
             is IrSimpleFunction -> when {
-                containerSource != null ->
-                    WrappedFunctionDescriptorWithContainerSource(containerSource)
                 owner.name.isSpecial && owner.name.asString().startsWith(GETTER_PREFIX) ->
-                    WrappedPropertyGetterDescriptor(Annotations.EMPTY, SourceElement.NO_SOURCE)
+                    WrappedPropertyGetterDescriptor()
                 owner.name.isSpecial && owner.name.asString().startsWith(SETTER_PREFIX) ->
-                    WrappedPropertySetterDescriptor(Annotations.EMPTY, SourceElement.NO_SOURCE)
+                    WrappedPropertySetterDescriptor()
                 else ->
                     WrappedSimpleFunctionDescriptor()
             }.apply { bind(owner) }
             is IrVariable -> WrappedVariableDescriptor().apply { bind(owner) }
             is IrValueParameter -> WrappedValueParameterDescriptor().apply { bind(owner) }
             is IrTypeParameter -> WrappedTypeParameterDescriptor().apply { bind(owner) }
-            is IrProperty -> if (containerSource != null) {
-                WrappedPropertyDescriptorWithContainerSource(containerSource)
-            } else {
-                WrappedPropertyDescriptor()
-            }.apply { bind(owner) }
+            is IrProperty -> WrappedPropertyDescriptor().apply { bind(owner) }
             is IrField -> WrappedFieldDescriptor().apply { bind(owner) }
             is IrTypeAlias -> WrappedTypeAliasDescriptor().apply { bind(owner) }
             else -> throw IllegalStateException("Unsupported owner in Fir2IrBindableSymbol: $owner")
-        } as D
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        result as D
     }
 
     companion object {

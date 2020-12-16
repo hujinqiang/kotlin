@@ -5,18 +5,19 @@
 
 package org.jetbrains.kotlin.fir.resolve
 
-import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.typeContext
-import org.jetbrains.kotlin.fir.scopes.FirTypeScope
+import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
+import org.jetbrains.kotlin.fir.resolve.transformers.createSubstitutionForSupertype
 import org.jetbrains.kotlin.fir.scopes.FirScope
+import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.impl.FirClassSubstitutionScope
-import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.typeContext
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.types.model.CaptureStatus
 
 abstract class SupertypeSupplier {
     abstract fun forClass(firClass: FirClass<*>): List<ConeClassLikeType>
@@ -33,10 +34,23 @@ fun lookupSuperTypes(
     lookupInterfaces: Boolean,
     deep: Boolean,
     useSiteSession: FirSession,
+    supertypeSupplier: SupertypeSupplier = SupertypeSupplier.Default,
+    substituteTypes: Boolean = false
+): List<ConeClassLikeType> {
+    return mutableListOf<ConeClassLikeType>().also {
+        klass.symbol.collectSuperTypes(it, mutableSetOf(), deep, lookupInterfaces, substituteTypes, useSiteSession, supertypeSupplier)
+    }
+}
+
+fun lookupSuperTypes(
+    symbol: FirClassifierSymbol<*>,
+    lookupInterfaces: Boolean,
+    deep: Boolean,
+    useSiteSession: FirSession,
     supertypeSupplier: SupertypeSupplier = SupertypeSupplier.Default
 ): List<ConeClassLikeType> {
     return mutableListOf<ConeClassLikeType>().also {
-        klass.symbol.collectSuperTypes(it, mutableSetOf(), deep, lookupInterfaces, useSiteSession, supertypeSupplier)
+        symbol.collectSuperTypes(it, mutableSetOf(), deep, lookupInterfaces, false, useSiteSession, supertypeSupplier)
     }
 }
 
@@ -46,18 +60,20 @@ inline fun <reified ID : Any, reified FS : FirScope> scopeSessionKey(): ScopeSes
 
 val USE_SITE = scopeSessionKey<FirClassSymbol<*>, FirTypeScope>()
 
-data class SubstitutionScopeKey(val type: ConeClassLikeType) : ScopeSessionKey<FirClassLikeSymbol<*>, FirClassSubstitutionScope>()
-
-fun FirClass<*>.buildUseSiteMemberScope(useSiteSession: FirSession, builder: ScopeSession): FirScope? {
-    return this.unsubstitutedScope(useSiteSession, builder)
-}
+data class SubstitutionScopeKey(
+    val type: ConeClassLikeType,
+    // This property is necessary. Otherwise we may have accidental matching when two classes have the same supertype
+    val derivedClassId: ClassId
+) : ScopeSessionKey<FirClassLikeSymbol<*>, FirClassSubstitutionScope>()
 
 /* TODO REMOVE */
 fun createSubstitution(
     typeParameters: List<FirTypeParameterRef>, // TODO: or really declared?
-    typeArguments: Array<out ConeTypeProjection>,
+    type: ConeClassLikeType,
     session: FirSession
 ): Map<FirTypeParameterSymbol, ConeKotlinType> {
+    val capturedOrType = session.typeContext.captureFromArguments(type, CaptureStatus.FROM_EXPRESSION) ?: type
+    val typeArguments = (capturedOrType as ConeClassLikeType).typeArguments
     return typeParameters.zip(typeArguments) { typeParameter, typeArgument ->
         val typeParameterSymbol = typeParameter.symbol
         typeParameterSymbol to when (typeArgument) {
@@ -79,30 +95,28 @@ fun ConeClassLikeType.wrapSubstitutionScopeIfNeed(
     useSiteMemberScope: FirTypeScope,
     declaration: FirClassLikeDeclaration<*>,
     builder: ScopeSession,
-    derivedClassId: ClassId? = null
+    derivedClass: FirRegularClass
 ): FirTypeScope {
     if (this.typeArguments.isEmpty()) return useSiteMemberScope
-    return builder.getOrBuild(declaration.symbol, SubstitutionScopeKey(this)) {
+    return builder.getOrBuild(declaration.symbol, SubstitutionScopeKey(this, derivedClass.symbol.classId)) {
         val typeParameters = (declaration as? FirTypeParameterRefsOwner)?.typeParameters.orEmpty()
-        val originalSubstitution = createSubstitution(typeParameters, typeArguments, session)
-        val javaClassId = JavaToKotlinClassMap.mapKotlinToJava(declaration.symbol.classId.asSingleFqName().toUnsafe())
-        val javaClass = javaClassId?.let { session.firSymbolProvider.getClassLikeSymbolByFqName(it)?.fir } as? FirRegularClass
-        if (javaClass != null) {
+        val originalSubstitution = createSubstitution(typeParameters, this, session)
+        val platformClass = session.platformClassMapper.getCorrespondingPlatformClass(declaration)
+        val substitutor = if (platformClass != null) {
             // This kind of substitution is necessary when method which is mapped from Java (e.g. Java Map.forEach)
             // is called on an external type, like MyMap<String, String>,
             // to determine parameter types properly (e.g. String, String instead of K, V)
-            val javaTypeParameters = javaClass.typeParameters
-            val javaSubstitution = createSubstitution(javaTypeParameters, typeArguments, session)
-            FirClassSubstitutionScope(
-                session, useSiteMemberScope, builder, originalSubstitution + javaSubstitution,
-                skipPrivateMembers = true, derivedClassId = derivedClassId
-            )
+            val platformTypeParameters = platformClass.typeParameters
+            val platformSubstitution = createSubstitution(platformTypeParameters, this, session)
+            substitutorByMap(originalSubstitution + platformSubstitution)
         } else {
-            FirClassSubstitutionScope(
-                session, useSiteMemberScope, builder, originalSubstitution,
-                skipPrivateMembers = true, derivedClassId = derivedClassId
-            )
+            substitutorByMap(originalSubstitution)
         }
+        FirClassSubstitutionScope(
+            session, useSiteMemberScope, substitutor,
+            dispatchReceiverTypeForSubstitutedMembers = derivedClass.defaultType(),
+            skipPrivateMembers = true,
+        )
     }
 }
 
@@ -116,6 +130,7 @@ private fun FirClassifierSymbol<*>.collectSuperTypes(
     visitedSymbols: MutableSet<FirClassifierSymbol<*>>,
     deep: Boolean,
     lookupInterfaces: Boolean,
+    substituteSuperTypes: Boolean,
     useSiteSession: FirSession,
     supertypeSupplier: SupertypeSupplier
 ) {
@@ -131,14 +146,30 @@ private fun FirClassifierSymbol<*>.collectSuperTypes(
             if (deep)
                 superClassTypes.forEach {
                     if (it !is ConeClassErrorType) {
-                        it.lookupTag.toSymbol(useSiteSession)?.collectSuperTypes(
-                            list,
-                            visitedSymbols,
-                            deep,
-                            lookupInterfaces,
-                            useSiteSession,
-                            supertypeSupplier
-                        )
+                        if (substituteSuperTypes) {
+                            val substitutedTypes = mutableListOf<ConeClassLikeType>()
+                            it.lookupTag.toSymbol(useSiteSession)?.collectSuperTypes(
+                                substitutedTypes,
+                                visitedSymbols,
+                                deep,
+                                lookupInterfaces,
+                                substituteSuperTypes,
+                                useSiteSession,
+                                supertypeSupplier
+                            )
+                            val substitutor = createSubstitutionForSupertype(it, useSiteSession)
+                            substitutedTypes.mapTo(list) { superType -> substitutor.substituteOrSelf(superType) as ConeClassLikeType }
+                        } else {
+                            it.lookupTag.toSymbol(useSiteSession)?.collectSuperTypes(
+                                list,
+                                visitedSymbols,
+                                deep,
+                                lookupInterfaces,
+                                substituteSuperTypes,
+                                useSiteSession,
+                                supertypeSupplier
+                            )
+                        }
                     }
                 }
         }
@@ -146,7 +177,7 @@ private fun FirClassifierSymbol<*>.collectSuperTypes(
             val expansion =
                 supertypeSupplier.expansionForTypeAlias(fir)?.computePartialExpansion(useSiteSession, supertypeSupplier) ?: return
             expansion.lookupTag.toSymbol(useSiteSession)
-                ?.collectSuperTypes(list, visitedSymbols, deep, lookupInterfaces, useSiteSession, supertypeSupplier)
+                ?.collectSuperTypes(list, visitedSymbols, deep, lookupInterfaces, substituteSuperTypes, useSiteSession, supertypeSupplier)
         }
         else -> error("?!id:1")
     }

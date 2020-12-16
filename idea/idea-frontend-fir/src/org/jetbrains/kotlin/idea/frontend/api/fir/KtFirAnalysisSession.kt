@@ -5,175 +5,119 @@
 
 package org.jetbrains.kotlin.idea.frontend.api.fir
 
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.diagnostics.Diagnostic
-import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirClass
-import org.jetbrains.kotlin.fir.declarations.isSuspend
-import org.jetbrains.kotlin.fir.expressions.*
-import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
+import com.intellij.openapi.project.Project
+import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.resolve.firSymbolProvider
-import org.jetbrains.kotlin.fir.resolve.transformers.firClassLike
-import org.jetbrains.kotlin.fir.symbols.CallableId
-import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.idea.fir.*
-import org.jetbrains.kotlin.idea.fir.low.level.api.LowLevelFirApiFacade
-import org.jetbrains.kotlin.idea.frontend.api.*
+import org.jetbrains.kotlin.idea.fir.low.level.api.api.FirModuleResolveState
+import org.jetbrains.kotlin.idea.fir.low.level.api.api.LowLevelFirApiFacadeForCompletion
+import org.jetbrains.kotlin.idea.fir.low.level.api.api.getFirFile
+import org.jetbrains.kotlin.idea.fir.low.level.api.api.getResolveState
+import org.jetbrains.kotlin.idea.frontend.api.KtAnalysisSession
+import org.jetbrains.kotlin.idea.frontend.api.ReadActionConfinementValidityToken
+import org.jetbrains.kotlin.idea.frontend.api.ValidityToken
+import org.jetbrains.kotlin.idea.frontend.api.assertIsValid
+import org.jetbrains.kotlin.idea.frontend.api.components.*
+import org.jetbrains.kotlin.idea.frontend.api.fir.components.*
 import org.jetbrains.kotlin.idea.frontend.api.fir.symbols.KtFirSymbolProvider
-import org.jetbrains.kotlin.idea.frontend.api.symbols.KtFunctionSymbol
-import org.jetbrains.kotlin.idea.frontend.api.symbols.KtSymbol
+import org.jetbrains.kotlin.idea.frontend.api.fir.utils.EnclosingDeclarationContext
+import org.jetbrains.kotlin.idea.frontend.api.fir.utils.buildCompletionContext
+import org.jetbrains.kotlin.idea.frontend.api.fir.utils.threadLocal
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtSymbolProvider
-import org.jetbrains.kotlin.idea.frontend.api.symbols.KtVariableLikeSymbol
-import org.jetbrains.kotlin.idea.frontend.api.types.KtType
-import org.jetbrains.kotlin.idea.references.FirReferenceResolveHelper
-import org.jetbrains.kotlin.idea.references.FirReferenceResolveHelper.toTargetSymbol
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFile
 
-class KtFirAnalysisSession(
-    element: KtElement
-) : KtAnalysisSession(element.project) {
-    internal val token get() = validityToken
-
-    internal val firSymbolBuilder = KtSymbolByFirBuilder(
-        element.session.firSymbolProvider,
-        ConeTypeCheckerContext(isErrorTypeEqualsToAnything = true, isStubTypeEqualsToAnything = true, element.session),
-        element.project,
-        validityToken
-    )
-
-    override val symbolProvider: KtSymbolProvider =
-        KtFirSymbolProvider(
-            this,
-            element.session.firSymbolProvider,
-            firSymbolBuilder
-        )
-
+internal class KtFirAnalysisSession
+private constructor(
+    private val project: Project,
+    val firResolveState: FirModuleResolveState,
+    internal val firSymbolBuilder: KtSymbolByFirBuilder,
+    token: ValidityToken,
+    val context: KtFirAnalysisSessionContext,
+) : KtAnalysisSession(token) {
     init {
         assertIsValid()
     }
 
-    override fun getSmartCastedToTypes(expression: KtExpression): Collection<KtType>? = withValidityAssertion {
-        // TODO filter out not used smartcasts
-        expression.getOrBuildFirSafe<FirExpressionWithSmartcast>()?.typesFromSmartCast?.map { it.asTypeInfo() }
-    }
+    internal val towerDataContextProvider: TowerDataContextProvider = TowerDataContextProvider(this)
 
-    @OptIn(ExperimentalStdlibApi::class)
-    override fun getImplicitReceiverSmartCasts(expression: KtExpression): Collection<ImplicitReceiverSmartCast> = withValidityAssertion {
-        // TODO filter out not used smartcasts
-        val qualifiedExpression = expression.getOrBuildFirSafe<FirQualifiedAccessExpression>() ?: return emptyList()
-        if (qualifiedExpression.dispatchReceiver !is FirExpressionWithSmartcast
-            && qualifiedExpression.extensionReceiver !is FirExpressionWithSmartcast
-        ) return emptyList()
-        val session = expression.session
-        buildList {
-            (qualifiedExpression.dispatchReceiver as? FirExpressionWithSmartcast)?.let { smartCasted ->
-                ImplicitReceiverSmartCast(
-                    smartCasted.typesFromSmartCast.map { it.asTypeInfo() },
-                    ImplicitReceiverSmartcastKind.DISPATCH
-                )
-            }?.let(::add)
-            (qualifiedExpression.extensionReceiver as? FirExpressionWithSmartcast)?.let { smartCasted ->
-                ImplicitReceiverSmartCast(
-                    smartCasted.typesFromSmartCast.map { it.asTypeInfo() },
-                    ImplicitReceiverSmartcastKind.EXTENSION
-                )
-            }?.let(::add)
+    override val smartCastProvider: KtSmartCastProvider = KtFirSmartcastProvider(this, token)
+    override val expressionTypeProvider: KtExpressionTypeProvider = KtFirExpressionTypeProvider(this, token)
+    override val diagnosticProvider: KtDiagnosticProvider = KtFirDiagnosticProvider(this, token)
+    override val containingDeclarationProvider = KtFirSymbolContainingDeclarationProvider(this, token)
+    override val callResolver: KtCallResolver = KtFirCallResolver(this, token)
+    override val scopeProvider by threadLocal { KtFirScopeProvider(this, firSymbolBuilder, project, firResolveState, token) }
+    override val symbolProvider: KtSymbolProvider =
+        KtFirSymbolProvider(this, firResolveState.rootModuleSession.firSymbolProvider, firResolveState, firSymbolBuilder, token)
+    override val completionCandidateChecker: KtCompletionCandidateChecker = KtFirCompletionCandidateChecker(this, token)
+    override val symbolDeclarationOverridesProvider: KtSymbolDeclarationOverridesProvider =
+        KtFirSymbolDeclarationOverridesProvider(this, token)
+
+    override val expressionHandlingComponent: KtExpressionHandlingComponent = KtFirExpressionHandlingComponent(this, token)
+    override val typeProvider: KtTypeProvider = KtFirTypeProvider(this, token)
+    override val subtypingComponent: KtSubtypingComponent = KtFirSubtypingComponent(this, token)
+
+    override fun createContextDependentCopy(originalKtFile: KtFile, fakeKtElement: KtElement): KtAnalysisSession {
+        check(context == KtFirAnalysisSessionContext.DefaultContext) {
+            "Cannot create context-dependent copy of KtAnalysis session from a context dependent one"
         }
+        val contextResolveState = LowLevelFirApiFacadeForCompletion.getResolveStateForCompletion(firResolveState)
+        val originalFirFile = originalKtFile.getFirFile(firResolveState)
+        val context = KtFirAnalysisSessionContext.FakeFileContext(originalKtFile, originalFirFile, fakeKtElement, contextResolveState)
+        return KtFirAnalysisSession(
+            project,
+            contextResolveState,
+            firSymbolBuilder.createReadOnlyCopy(contextResolveState),
+            token,
+            context
+        )
     }
-
-
-    override fun getReturnTypeForKtDeclaration(declaration: KtDeclaration): KtType = withValidityAssertion {
-        val firDeclaration = declaration.getOrBuildFirOfType<FirCallableDeclaration<*>>()
-        firDeclaration.returnTypeRef.coneType.asTypeInfo()
-    }
-
-    override fun getKtExpressionType(expression: KtExpression): KtType = withValidityAssertion {
-        expression.getOrBuildFirOfType<FirExpression>().typeRef.coneType.asTypeInfo()
-    }
-
-    override fun isSubclassOf(klass: KtClassOrObject, superClassId: ClassId): Boolean {
-        assertIsValid()
-        var result = false
-        forEachSuperClass(klass.getOrBuildFirSafe() ?: return false) { type ->
-            result = result || type.firClassLike(klass.session)?.symbol?.classId == superClassId
-        }
-        return result
-    }
-
-    override fun getDiagnosticsForElement(element: KtElement): Collection<Diagnostic> = withValidityAssertion {
-        LowLevelFirApiFacade.getDiagnosticsFor(element)
-    }
-
-    override fun resolveCall(call: KtBinaryExpression): CallInfo? = withValidityAssertion {
-        val firCall = call.getOrBuildFirSafe<FirFunctionCall>() ?: return null
-        resolveCall(firCall, call)
-    }
-
-    override fun resolveCall(call: KtCallExpression): CallInfo? = withValidityAssertion {
-        val firCall = when (val fir = call.getOrBuildFir()) {
-            is FirFunctionCall -> fir
-            is FirSafeCallExpression -> fir.regularQualifiedAccess as? FirFunctionCall
-            else -> null
-        } ?: return null
-        return resolveCall(firCall, call)
-    }
-
-    private fun resolveCall(firCall: FirFunctionCall, callExpression: KtExpression): CallInfo? {
-        val session = callExpression.session
-        val resolvedFunctionSymbol = firCall.calleeReference.toTargetSymbol(session, firSymbolBuilder)
-        val resolvedCalleeSymbol = (firCall.calleeReference as? FirResolvedNamedReference)?.resolvedSymbol
-        return when {
-            resolvedCalleeSymbol is FirConstructorSymbol -> {
-                val fir = resolvedCalleeSymbol.fir
-                FunctionCallInfo(firSymbolBuilder.buildConstructorSymbol(fir))
-            }
-            firCall.dispatchReceiver is FirQualifiedAccessExpression && firCall.isImplicitFunctionCall() -> {
-                val target = with(FirReferenceResolveHelper) {
-                    val calleeReference = (firCall.dispatchReceiver as FirQualifiedAccessExpression).calleeReference
-                    calleeReference.toTargetSymbol(session, firSymbolBuilder)
-                }
-                when (target) {
-                    null -> null
-                    is KtVariableLikeSymbol -> {
-                        val functionSymbol =
-                            (firCall.calleeReference as? FirResolvedNamedReference)?.resolvedSymbol as? FirNamedFunctionSymbol
-                        when (functionSymbol?.callableId) {
-                            null -> null
-                            in kotlinFunctionInvokeCallableIds -> VariableAsFunctionCallInfo(target, functionSymbol.fir.isSuspend)
-                            else -> (resolvedFunctionSymbol as? KtFunctionSymbol)
-                                ?.let { VariableAsFunctionLikeCallInfo(target, it) }
-                        }
-                    }
-                    else -> resolvedFunctionSymbol?.asSimpleFunctionCall()
-                }
-            }
-            else -> resolvedFunctionSymbol?.asSimpleFunctionCall()
-        }
-    }
-
-    private fun KtSymbol.asSimpleFunctionCall() =
-        (this as? KtFunctionSymbol)?.let(::FunctionCallInfo)
-
-    private fun forEachSuperClass(firClass: FirClass<*>, action: (FirResolvedTypeRef) -> Unit) {
-        firClass.superTypeRefs.forEach { superType ->
-            (superType as? FirResolvedTypeRef)?.let(action)
-            (superType.firClassLike(firClass.session) as? FirClass<*>?)?.let { forEachSuperClass(it, action) }
-        }
-    }
-
-    private fun ConeKotlinType.asTypeInfo() = firSymbolBuilder.buildKtType(this)
 
     companion object {
+        @Deprecated("Please use org.jetbrains.kotlin.idea.frontend.api.KtAnalysisSessionProviderKt.analyze")
+        internal fun createForElement(element: KtElement): KtFirAnalysisSession {
+            val firResolveState = element.getResolveState()
+            return createAnalysisSessionByResolveState(firResolveState)
+        }
 
-        private val kotlinFunctionInvokeCallableIds = (0..23).flatMapTo(hashSetOf()) { arity ->
-            listOf(
-                CallableId(KotlinBuiltIns.getFunctionClassId(arity), Name.identifier("invoke")),
-                CallableId(KotlinBuiltIns.getSuspendFunctionClassId(arity), Name.identifier("invoke"))
+        @Deprecated("Please use org.jetbrains.kotlin.idea.frontend.api.KtAnalysisSessionProviderKt.analyze")
+        internal fun createAnalysisSessionByResolveState(firResolveState: FirModuleResolveState): KtFirAnalysisSession {
+            val project = firResolveState.project
+            val token = ReadActionConfinementValidityToken(project)
+            val firSymbolBuilder = KtSymbolByFirBuilder(
+                firResolveState,
+                project,
+                token
+            )
+            return KtFirAnalysisSession(
+                project,
+                firResolveState,
+                firSymbolBuilder,
+                token,
+                KtFirAnalysisSessionContext.DefaultContext
             )
         }
     }
 }
+
+internal sealed class KtFirAnalysisSessionContext {
+    object DefaultContext : KtFirAnalysisSessionContext()
+
+    class FakeFileContext(
+        originalFile: KtFile,
+        firFile: FirFile,
+        fakeContextElement: KtElement,
+        fakeModuleResolveState: FirModuleResolveState
+    ) : KtFirAnalysisSessionContext() {
+        init {
+            require(!fakeContextElement.isPhysical)
+        }
+
+        val completionContext = run {
+            val enclosingContext = EnclosingDeclarationContext.detect(originalFile, fakeContextElement)
+            enclosingContext.buildCompletionContext(firFile, fakeModuleResolveState)
+        }
+
+        val fakeKtFile = fakeContextElement.containingKtFile
+    }
+}
+

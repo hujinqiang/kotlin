@@ -15,24 +15,16 @@ import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.common.lower.parents
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
-import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
-import org.jetbrains.kotlin.ir.backend.js.utils.toJsArrayLiteral
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.declarations.buildConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.buildField
+import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrConstructorImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
-import org.jetbrains.kotlin.ir.descriptors.WrappedClassConstructorDescriptor
-import org.jetbrains.kotlin.ir.descriptors.WrappedFieldDescriptor
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.symbols.impl.IrConstructorSymbolImpl
-import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
-import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
@@ -40,7 +32,7 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
 
-class EnumUsageLowering(val context: JsIrBackendContext) : BodyLoweringPass {
+class EnumUsageLowering(val context: JsCommonBackendContext) : BodyLoweringPass {
     private var IrEnumEntry.getInstanceFun by context.mapping.enumEntryToGetInstanceFun
 
     override fun lower(irBody: IrBody, container: IrDeclaration) {
@@ -48,41 +40,13 @@ class EnumUsageLowering(val context: JsIrBackendContext) : BodyLoweringPass {
             override fun visitGetEnumValue(expression: IrGetEnumValue): IrExpression {
                 val enumEntry = expression.symbol.owner
                 val klass = enumEntry.parent as IrClass
-                return if (klass.isExternal) lowerExternalEnumEntry(enumEntry, klass) else lowerEnumEntry(enumEntry, klass)
+                if (klass.isExternal) return expression
+                return lowerEnumEntry(enumEntry)
             }
         })
     }
 
-    private fun lowerExternalEnumEntry(enumEntry: IrEnumEntry, klass: IrClass) =
-        context.mapping.enumEntryToInstanceField.getOrPut(enumEntry) { createFieldForEntry(enumEntry, klass) }.let {
-            JsIrBuilder.buildGetField(it.symbol, classAsReceiver(klass), null, klass.defaultType)
-        }
-
-    private fun classAsReceiver(irClass: IrClass): IrExpression {
-        val intrinsic = context.intrinsics.jsClass
-        return JsIrBuilder.buildCall(intrinsic, context.irBuiltIns.anyType, listOf(irClass.defaultType))
-    }
-
-    private fun createFieldForEntry(entry: IrEnumEntry, irClass: IrClass): IrField {
-        val descriptor = WrappedFieldDescriptor()
-        val symbol = IrFieldSymbolImpl(descriptor)
-        return entry.run {
-            IrFieldImpl(
-                startOffset, endOffset, origin, symbol, name, irClass.defaultType, Visibilities.PUBLIC,
-                isFinal = false, isExternal = true, isStatic = true
-            ).also {
-                descriptor.bind(it)
-                it.parent = irClass
-
-                // TODO need a way to emerge local declarations from BodyLoweringPass
-                stageController.unrestrictDeclarationListsAccess {
-                    irClass.declarations += it
-                }
-            }
-        }
-    }
-
-    private fun lowerEnumEntry(enumEntry: IrEnumEntry, klass: IrClass) =
+    private fun lowerEnumEntry(enumEntry: IrEnumEntry) =
         enumEntry.getInstanceFun!!.run { JsIrBuilder.buildCall(symbol) }
 }
 
@@ -98,6 +62,11 @@ class EnumClassConstructorLowering(val context: JsCommonBackendContext) : Declar
     private var IrConstructor.newConstructor by context.mapping.enumConstructorToNewConstructor
     private var IrClass.correspondingEntry by context.mapping.enumClassToCorrespondingEnumEntry
     private var IrValueDeclaration.valueParameter by context.mapping.enumConstructorOldToNewValueParameters
+
+    private val additionalParameters = listOf(
+        "name" to context.irBuiltIns.stringType,
+        "ordinal" to context.irBuiltIns.intType
+    )
 
     override fun transformFlat(declaration: IrDeclaration): List<IrDeclaration>? {
         (declaration.parent as? IrClass)?.let { irClass ->
@@ -119,33 +88,21 @@ class EnumClassConstructorLowering(val context: JsCommonBackendContext) : Declar
     }
 
     private fun transformEnumConstructor(enumConstructor: IrConstructor, enumClass: IrClass): IrConstructor {
-        val loweredConstructorDescriptor = WrappedClassConstructorDescriptor()
-        val loweredConstructorSymbol = IrConstructorSymbolImpl(loweredConstructorDescriptor)
-
-        return IrConstructorImpl(
-            enumConstructor.startOffset,
-            enumConstructor.endOffset,
-            enumConstructor.origin,
-            loweredConstructorSymbol,
-            enumConstructor.name,
-            enumConstructor.visibility,
-            enumConstructor.returnType,
-            isInline = enumConstructor.isInline,
-            isExternal = enumConstructor.isExternal,
-            isPrimary = enumConstructor.isPrimary,
-            isExpect = enumConstructor.isExpect
-        ).apply {
-            loweredConstructorDescriptor.bind(this)
+        return context.irFactory.buildConstructor {
+            updateFrom(enumConstructor)
+            returnType = enumConstructor.returnType
+        }.apply {
             parent = enumClass
-            valueParameters += JsIrBuilder.buildValueParameter("name", 0, context.irBuiltIns.stringType).also { it.parent = this }
-            valueParameters += JsIrBuilder.buildValueParameter("ordinal", 1, context.irBuiltIns.intType).also { it.parent = this }
+            additionalParameters.forEachIndexed { index, (name, type) ->
+                valueParameters += JsIrBuilder.buildValueParameter(this, name, index, type)
+            }
             copyParameterDeclarationsFrom(enumConstructor)
 
             val newConstructor = this
             enumConstructor.newConstructor = this
 
             enumConstructor.body?.let { oldBody ->
-                body = IrBlockBodyImpl(oldBody.startOffset, oldBody.endOffset) {
+                body = context.irFactory.createBlockBody(oldBody.startOffset, oldBody.endOffset) {
                     statements += (oldBody as IrBlockBody).statements
 
                     context.fixReferencesToConstructorParameters(enumClass, this)
@@ -160,12 +117,11 @@ class EnumClassConstructorLowering(val context: JsCommonBackendContext) : Declar
             val oldParameters = enumConstructor.valueParameters
             val newParameters = valueParameters
             oldParameters.forEach { old ->
-                // TODO Match by index?
-                val new = newParameters.single { it.name == old.name }
+                val new = newParameters.single { it.index == old.index + additionalParameters.size }
                 old.valueParameter = new
 
                 old.defaultValue?.let { default ->
-                    new.defaultValue = IrExpressionBodyImpl(default.startOffset, default.endOffset) {
+                    new.defaultValue = context.irFactory.createExpressionBody(default.startOffset, default.endOffset) {
                         expression = default.expression
                         expression.patchDeclarationParents(newConstructor)
                         context.fixReferencesToConstructorParameters(enumClass, this)
@@ -187,6 +143,13 @@ private fun JsCommonBackendContext.fixReferencesToConstructorParameters(irClass:
             }
 
             return super.visitGetValue(expression)
+        }
+
+        override fun visitSetValue(expression: IrSetValue): IrExpression {
+            expression.transformChildrenVoid()
+            return mapping.enumConstructorOldToNewValueParameters[expression.symbol.owner]?.let {
+                builder.irSet(it.symbol, expression.value)
+            } ?: expression
         }
     })
 }
@@ -245,7 +208,7 @@ class EnumClassConstructorBodyTransformer(val context: JsCommonBackendContext) :
             }
 
         override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall): IrExpression {
-            val delegatingConstructor = expression.symbol.owner. let { it.newConstructor ?: it }
+            val delegatingConstructor = expression.symbol.owner.let { it.newConstructor ?: it }
 
             return builder.irDelegatingConstructorCall(delegatingConstructor).apply {
                 var valueArgIdx = 0
@@ -318,7 +281,7 @@ class EnumClassConstructorBodyTransformer(val context: JsCommonBackendContext) :
 private val IrClass.goodEnum: Boolean
     get() = isEnumClass && !isExpect && !isEffectivelyExternal()
 
-class EnumEntryInstancesLowering(val context: JsIrBackendContext) : DeclarationTransformer {
+class EnumEntryInstancesLowering(val context: JsCommonBackendContext) : DeclarationTransformer {
 
     private var IrEnumEntry.correspondingField by context.mapping.enumEntryToCorrespondingField
 
@@ -336,7 +299,7 @@ class EnumEntryInstancesLowering(val context: JsIrBackendContext) : DeclarationT
     private fun createEnumEntryInstanceVariable(irClass: IrClass, enumEntry: IrEnumEntry): IrField {
         val enumName = irClass.name.identifier
 
-        val result = buildField {
+        val result = context.irFactory.buildField {
             name = Name.identifier("${enumName}_${enumEntry.name.identifier}_instance")
             type = enumEntry.getType(irClass).makeNullable()
             isStatic = true
@@ -351,7 +314,7 @@ class EnumEntryInstancesLowering(val context: JsIrBackendContext) : DeclarationT
     }
 }
 
-class EnumEntryInstancesBodyLowering(val context: JsIrBackendContext) : BodyLoweringPass {
+class EnumEntryInstancesBodyLowering(val context: JsCommonBackendContext) : BodyLoweringPass {
 
     private var IrEnumEntry.correspondingField by context.mapping.enumEntryToCorrespondingField
 
@@ -367,7 +330,7 @@ class EnumEntryInstancesBodyLowering(val context: JsIrBackendContext) : BodyLowe
                 val index = (irBody as IrBlockBody).statements
                     .indexOfFirst { it is IrTypeOperatorCall && it.argument is IrDelegatingConstructorCall } + 1
 
-                (irBody as IrBlockBody).statements.add(index, context.createIrBuilder(container.symbol).run {
+                irBody.statements.add(index, context.createIrBuilder(container.symbol).run {
                     irSetField(null, entry.correspondingField!!, irGet(entryClass.thisReceiver!!))
                 })
             }
@@ -375,7 +338,7 @@ class EnumEntryInstancesBodyLowering(val context: JsIrBackendContext) : BodyLowe
     }
 }
 
-class EnumClassCreateInitializerLowering(val context: JsIrBackendContext) : DeclarationTransformer {
+class EnumClassCreateInitializerLowering(val context: JsCommonBackendContext) : DeclarationTransformer {
 
     private var IrEnumEntry.correspondingField by context.mapping.enumEntryToCorrespondingField
     private var IrClass.initEntryInstancesFun: IrSimpleFunction? by context.mapping.enumClassToInitEntryInstancesFun
@@ -404,7 +367,7 @@ class EnumClassCreateInitializerLowering(val context: JsIrBackendContext) : Decl
         return null
     }
 
-    private fun createEntryInstancesInitializedVar(irClass: IrClass): IrField = buildField {
+    private fun createEntryInstancesInitializedVar(irClass: IrClass): IrField = context.irFactory.buildField {
         val enumName = irClass.name.identifier
         name = Name.identifier("${enumName}_entriesInitialized")
         type = context.irBuiltIns.booleanType
@@ -415,32 +378,28 @@ class EnumClassCreateInitializerLowering(val context: JsIrBackendContext) : Decl
     }
 
     private fun createInitEntryInstancesFun(irClass: IrClass, entryInstancesInitializedField: IrField): IrSimpleFunction =
-        buildFunction(irClass, "${irClass.name.identifier}_initEntries", context.irBuiltIns.unitType).also {
-            it.body = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
+        context.irFactory.buildFun {
+            name = Name.identifier("${irClass.name.identifier}_initEntries")
+            returnType = context.irBuiltIns.unitType
+            origin = JsIrBuilder.SYNTHESIZED_DECLARATION
+        }.also {
+            it.parent = irClass
+            it.body = context.irFactory.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
                 statements += context.createIrBuilder(it.symbol).irBlockBody(it) {
                     +irIfThen(irGetField(null, entryInstancesInitializedField), irReturnUnit())
                     +irSetField(null, entryInstancesInitializedField, irBoolean(true))
 
                     irClass.enumEntries.forEach { entry ->
                         entry.correspondingField?.let { instanceField ->
-                            +irSetField(null, instanceField, entry.initializerExpression!!.expression)
+                            +irSetField(null, instanceField, entry.initializerExpression!!.expression.deepCopyWithSymbols(it))
                         }
                     }
-                }.also {
-                    // entry.initializerExpression can have local declarations
-                    it.acceptVoid(PatchDeclarationParentsVisitor(irClass))
                 }.statements
             }
         }
 }
 
-private fun buildFunction(
-    irClass: IrClass,
-    name: String,
-    returnType: IrType
-) = JsIrBuilder.buildFunction(name, returnType, irClass)
-
-class EnumEntryCreateGetInstancesFunsLowering(val context: JsIrBackendContext): DeclarationTransformer {
+class EnumEntryCreateGetInstancesFunsLowering(val context: JsCommonBackendContext) : DeclarationTransformer {
 
     private var IrEnumEntry.correspondingField by context.mapping.enumEntryToCorrespondingField
     private var IrClass.initEntryInstancesFun: IrSimpleFunction? by context.mapping.enumClassToInitEntryInstancesFun
@@ -465,21 +424,28 @@ class EnumEntryCreateGetInstancesFunsLowering(val context: JsIrBackendContext): 
         return null
     }
 
-    private fun createGetEntryInstanceFun(irClass: IrClass, enumEntry: IrEnumEntry, initEntryInstancesFun: IrSimpleFunction): IrSimpleFunction {
-
-        return context.mapping.enumEntryToGetInstanceFun.getOrPut(enumEntry) { buildFunction(irClass, createEntryAccessorName(irClass.name.identifier, enumEntry), enumEntry.getType(irClass)) }
-            .also {
-                it.body = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
-                    statements += context.createIrBuilder(it.symbol).irBlockBody(it) {
-                        +irCall(initEntryInstancesFun)
-                        +irReturn(irGetField(null, enumEntry.correspondingField!!))
-                    }.statements
-                }
+    private fun createGetEntryInstanceFun(
+        irClass: IrClass, enumEntry: IrEnumEntry, initEntryInstancesFun: IrSimpleFunction
+    ): IrSimpleFunction =
+        context.mapping.enumEntryToGetInstanceFun.getOrPut(enumEntry) {
+            context.irFactory.buildFun {
+                name = Name.identifier(createEntryAccessorName(irClass.name.identifier, enumEntry))
+                returnType = enumEntry.getType(irClass)
+                origin = JsIrBuilder.SYNTHESIZED_DECLARATION
+            }.apply {
+                parent = irClass
             }
-    }
+        }.also {
+            it.body = context.irFactory.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
+                statements += context.createIrBuilder(it.symbol).irBlockBody(it) {
+                    +irCall(initEntryInstancesFun)
+                    +irReturn(irGetField(null, enumEntry.correspondingField!!))
+                }.statements
+            }
+        }
 }
 
-class EnumSyntheticFunctionsLowering(val context: JsIrBackendContext): DeclarationTransformer {
+class EnumSyntheticFunctionsLowering(val context: JsCommonBackendContext) : DeclarationTransformer {
 
     private var IrEnumEntry.getInstanceFun by context.mapping.enumEntryToGetInstanceFun
 
@@ -489,7 +455,7 @@ class EnumSyntheticFunctionsLowering(val context: JsIrBackendContext): Declarati
                 val kind = body.kind
 
                 declaration.parents.filterIsInstance<IrClass>().firstOrNull { it.goodEnum }?.let { irClass ->
-                    declaration.body = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
+                    declaration.body = context.irFactory.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
                         statements += when (kind) {
                             IrSyntheticBodyKind.ENUM_VALUES -> createEnumValuesBody(declaration, irClass)
                             IrSyntheticBodyKind.ENUM_VALUEOF -> createEnumValueOfBody(declaration, irClass)
@@ -502,7 +468,7 @@ class EnumSyntheticFunctionsLowering(val context: JsIrBackendContext): Declarati
         return null
     }
 
-    private val throwISESymbol = context.throwISEsymbol
+    private val throwISESymbol = context.ir.symbols.throwISE
 
     private fun createEnumValueOfBody(valueOfFun: IrFunction, irClass: IrClass): IrBlockBody {
         val nameParameter = valueOfFun.valueParameters[0]
@@ -523,26 +489,12 @@ class EnumSyntheticFunctionsLowering(val context: JsIrBackendContext): Declarati
         }
     }
 
-    private fun List<IrExpression>.toArrayLiteral(arrayType: IrType, elementType: IrType): IrExpression {
-        val irVararg = IrVarargImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, arrayType, elementType, this)
-
-        return IrCallImpl(
-            UNDEFINED_OFFSET, UNDEFINED_OFFSET, arrayType,
-            context.intrinsics.arrayLiteral,
-            typeArgumentsCount = 0,
-            valueArgumentsCount = 1
-        ).apply {
-            putValueArgument(0, irVararg)
-        }
-    }
-
     private fun createEnumValuesBody(valuesFun: IrFunction, irClass: IrClass): IrBlockBody {
-        val backendContext = context
         return context.createIrBuilder(valuesFun.symbol).run {
             irBlockBody {
+                val instances = irClass.enumEntries.map { irCall(it.getInstanceFun!!) }
                 +irReturn(
-                    irClass.enumEntries.map { irCall(it.getInstanceFun!!) }
-                        .toJsArrayLiteral(backendContext, valuesFun.returnType, irClass.defaultType)
+                    IrVarargImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, valuesFun.returnType, irClass.defaultType, instances)
                 )
             }
         }
@@ -553,7 +505,7 @@ private val IrClass.enumEntries: List<IrEnumEntry>
     get() = declarations.filterIsInstance<IrEnumEntry>()
 
 // Should be applied recursively
-class EnumClassRemoveEntriesLowering(val context: JsIrBackendContext) : DeclarationTransformer {
+class EnumClassRemoveEntriesLowering(val context: JsCommonBackendContext) : DeclarationTransformer {
     override fun transformFlat(declaration: IrDeclaration): List<IrDeclaration>? {
         // Remove IrEnumEntry nodes from class declarations. Replace them with corresponding class declarations (if they have them).
         if (declaration is IrEnumEntry && !declaration.isExpect && !declaration.isEffectivelyExternal()) {

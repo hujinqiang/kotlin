@@ -1,11 +1,11 @@
-// COMMON_COROUTINES_TEST
+// IGNORE_BACKEND_FIR: JVM_IR
 // FILE: A.kt
 // WITH_RUNTIME
 // WITH_COROUTINES
 package a
 
-import COROUTINES_PACKAGE.*
-import COROUTINES_PACKAGE.intrinsics.*
+import kotlin.coroutines.*
+import kotlin.coroutines.intrinsics.*
 
 class Controller {
     var callback: () -> Unit = {}

@@ -16,13 +16,14 @@
 
 package org.jetbrains.kotlin.psi2ir.generators
 
+import org.jetbrains.kotlin.backend.common.BackendException
+import org.jetbrains.kotlin.backend.common.CodegenUtil
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
+import org.jetbrains.kotlin.diagnostics.PsiDiagnosticUtils
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrErrorDeclarationImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrTypeAliasImpl
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.withScope
@@ -41,24 +42,44 @@ class DeclarationGenerator(override val context: GeneratorContext) : Generator {
 
     fun KotlinType.toIrType() = typeTranslator.translateType(this)
 
-    fun generateMemberDeclaration(ktDeclaration: KtDeclaration): IrDeclaration? =
-        when (ktDeclaration) {
-            is KtNamedFunction ->
-                FunctionGenerator(this).generateFunctionDeclaration(ktDeclaration)
-            is KtProperty ->
-                PropertyGenerator(this).generatePropertyDeclaration(ktDeclaration)
-            is KtClassOrObject ->
-                generateClassOrObjectDeclaration(ktDeclaration)
-            is KtTypeAlias ->
-                generateTypeAliasDeclaration(ktDeclaration)
-            is KtScript ->
-                ScriptGenerator(this).generateScriptDeclaration(ktDeclaration)
-            else ->
-                IrErrorDeclarationImpl(
-                    ktDeclaration.startOffsetSkippingComments, ktDeclaration.endOffset,
-                    getOrFail(BindingContext.DECLARATION_TO_DESCRIPTOR, ktDeclaration)
-                )
+    fun generateMemberDeclaration(ktDeclaration: KtDeclaration): IrDeclaration? {
+        return try {
+            when (ktDeclaration) {
+                is KtNamedFunction ->
+                    FunctionGenerator(this).generateFunctionDeclaration(ktDeclaration)
+                is KtProperty ->
+                    PropertyGenerator(this).generatePropertyDeclaration(ktDeclaration)
+                is KtClassOrObject ->
+                    generateClassOrObjectDeclaration(ktDeclaration)
+                is KtTypeAlias ->
+                    generateTypeAliasDeclaration(ktDeclaration)
+                is KtScript ->
+                    ScriptGenerator(this).generateScriptDeclaration(ktDeclaration)
+                else ->
+                    context.irFactory.createErrorDeclaration(
+                        ktDeclaration.startOffsetSkippingComments, ktDeclaration.endOffset,
+                        getOrFail(BindingContext.DECLARATION_TO_DESCRIPTOR, ktDeclaration)
+                    )
+            }
+        } catch (e: BackendException) {
+            throw e
+        } catch (e: Throwable) {
+            when {
+                context.configuration.ignoreErrors -> {
+                    context.irFactory.createErrorDeclaration(
+                        ktDeclaration.startOffsetSkippingComments, ktDeclaration.endOffset,
+                        getOrFail(BindingContext.DECLARATION_TO_DESCRIPTOR, ktDeclaration)
+                    )
+                }
+                e is ErrorExpressionException ->
+                    CodegenUtil.reportBackendException(e.cause ?: e, "psi2ir", PsiDiagnosticUtils.atLocation(e.ktElement), e.message)
+                else -> {
+                    val psiFile = ktDeclaration.containingKtFile
+                    CodegenUtil.reportBackendException(e, "psi2ir", psiFile.virtualFile?.path ?: psiFile.name)
+                }
+            }
         }
+    }
 
     fun generateSyntheticClassOrObject(syntheticDeclaration: KtPureClassOrObject): IrClass {
         return generateClassOrObjectDeclaration(syntheticDeclaration)
@@ -85,7 +106,7 @@ class DeclarationGenerator(override val context: GeneratorContext) : Generator {
     private fun generateTypeAliasDeclaration(ktTypeAlias: KtTypeAlias): IrTypeAlias =
         with(getOrFail(BindingContext.TYPE_ALIAS, ktTypeAlias)) {
             context.symbolTable.declareTypeAlias(this) { symbol ->
-                IrTypeAliasImpl(
+                context.irFactory.createTypeAlias(
                     ktTypeAlias.startOffsetSkippingComments, ktTypeAlias.endOffset, symbol,
                     name, visibility, expandedType.toIrType(), isActual, IrDeclarationOrigin.DEFINED
                 )
@@ -139,7 +160,7 @@ class DeclarationGenerator(override val context: GeneratorContext) : Generator {
         }
 
         for (irTypeParameter in irTypeParametersOwner.typeParameters) {
-            irTypeParameter.descriptor.upperBounds.mapTo(irTypeParameter.superTypes) {
+            irTypeParameter.superTypes = irTypeParameter.descriptor.upperBounds.map {
                 it.toIrType()
             }
         }

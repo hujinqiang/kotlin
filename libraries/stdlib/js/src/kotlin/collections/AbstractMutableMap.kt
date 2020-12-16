@@ -1,7 +1,8 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+
 /*
  * Based on GWT AbstractMap
  * Copyright 2007 Google Inc.
@@ -14,8 +15,8 @@ package kotlin.collections
  *
  * The implementor is required to implement [entries] property, which should return mutable set of map entries, and [put] function.
  *
- * @param K the type of map keys. The map is invariant on its key type.
- * @param V the type of map values. The map is invariant on its value type.
+ * @param K the type of map keys. The map is invariant in its key type.
+ * @param V the type of map values. The map is invariant in its value type.
  */
 public actual abstract class AbstractMutableMap<K, V> protected actual constructor() : AbstractMap<K, V>(), MutableMap<K, V> {
 
@@ -43,6 +44,12 @@ public actual abstract class AbstractMutableMap<K, V> protected actual construct
         override fun toString(): String = entryToString(this)
         override fun equals(other: Any?): Boolean = entryEquals(this, other)
 
+    }
+
+    // intermediate abstract class to workaround KT-43321
+    internal abstract class AbstractEntrySet<E : Map.Entry<K, V>, K, V> : AbstractMutableSet<E>() {
+        final override fun contains(element: E): Boolean = containsEntry(element)
+        abstract fun containsEntry(element: Map.Entry<K, V>): Boolean
     }
 
     actual override fun clear() {

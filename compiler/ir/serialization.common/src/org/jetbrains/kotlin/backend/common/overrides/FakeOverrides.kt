@@ -16,90 +16,76 @@
 
 package org.jetbrains.kotlin.backend.common.overrides
 
+import org.jetbrains.kotlin.backend.common.serialization.DeclarationTable
+import org.jetbrains.kotlin.backend.common.serialization.GlobalDeclarationTable
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.IrOverridableMember
-import org.jetbrains.kotlin.ir.declarations.impl.IrFakeOverrideFunctionImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrFakeOverridePropertyImpl
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.descriptors.WrappedPropertyDescriptor
 import org.jetbrains.kotlin.ir.descriptors.WrappedSimpleFunctionDescriptor
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.overrides.FakeOverrideBuilderStrategy
+import org.jetbrains.kotlin.ir.overrides.IrOverridingUtil
+import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrPropertySymbolImpl
-import org.jetbrains.kotlin.ir.types.IrSimpleType
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.getClass
+import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.ir.util.parentAsClass
 
-interface PlatformFakeOverrideClassFilter {
-    fun constructFakeOverrides(clazz: IrClass): Boolean = true
+class FakeOverrideGlobalDeclarationTable(
+    signatureSerializer: IdSignatureSerializer
+) : GlobalDeclarationTable(signatureSerializer, signatureSerializer.mangler) {
+    fun clear() = table.clear()
 }
 
-object DefaultFakeOverrideClassFilter : PlatformFakeOverrideClassFilter
+class FakeOverrideDeclarationTable(
+    signatureSerializer: IdSignatureSerializer,
+    globalTable: FakeOverrideGlobalDeclarationTable = FakeOverrideGlobalDeclarationTable(signatureSerializer)
+) : DeclarationTable(globalTable) {
+    override val globalDeclarationTable: FakeOverrideGlobalDeclarationTable = globalTable
+    fun clear() {
+        this.table.clear()
+        globalDeclarationTable.clear()
+    }
+}
 
-object FakeOverrideControl {
-    // If set to true: all fake overrides go to klib serialized IR.
-    // If set to false: eligible fake overrides are not serialized.
-    val serializeFakeOverrides: Boolean = true
+interface FakeOverrideClassFilter {
+    fun needToConstructFakeOverrides(clazz: IrClass): Boolean
+}
 
-    // If set to true: fake overrides are deserialized from klib serialized IR.
-    // If set to false: eligible fake overrides are constructed within IR linker.
-    // This is the default in the absence of -Xdeserialize-fake-overrides flag.
-    val deserializeFakeOverrides: Boolean = false
+interface FileLocalAwareLinker {
+    fun tryReferencingSimpleFunctionByLocalSignature(parent: IrDeclaration, idSignature: IdSignature): IrSimpleFunctionSymbol?
+    fun tryReferencingPropertyByLocalSignature(parent: IrDeclaration, idSignature: IdSignature): IrPropertySymbol?
+}
+
+object DefaultFakeOverrideClassFilter : FakeOverrideClassFilter {
+    override fun needToConstructFakeOverrides(clazz: IrClass): Boolean = true
 }
 
 class FakeOverrideBuilder(
+    val linker: FileLocalAwareLinker,
     val symbolTable: SymbolTable,
     val signaturer: IdSignatureSerializer,
-    val irBuiltIns: IrBuiltIns,
-    val platformSpecificClassFilter: PlatformFakeOverrideClassFilter = DefaultFakeOverrideClassFilter
-) : FakeOverrideBuilderStrategy {
+    irBuiltIns: IrBuiltIns,
+    val platformSpecificClassFilter: FakeOverrideClassFilter = DefaultFakeOverrideClassFilter
+) : FakeOverrideBuilderStrategy() {
     private val haveFakeOverrides = mutableSetOf<IrClass>()
-    override val propertyOverriddenSymbols = mutableMapOf<IrOverridableMember, List<IrSymbol>>()
+
     private val irOverridingUtil = IrOverridingUtil(irBuiltIns, this)
 
-    override fun fakeOverrideMember(
-        superType: IrType,
-        member: IrOverridableMember,
-        clazz: IrClass
-    ): IrOverridableMember {
-        require(superType is IrSimpleType) { "superType is $superType, expected IrSimpleType" }
-        val classifier = superType.classifier
-        require(classifier is IrClassSymbol) { "superType classifier is not IrClassSymbol: $classifier" }
+    // TODO: The declaration table is needed for the signaturer.
+    private val fakeOverrideDeclarationTable = FakeOverrideDeclarationTable(signaturer)
 
-        val typeParameters = classifier.owner.typeParameters.map { it.symbol }
-        val typeArguments = superType.arguments.map {
-            require(it is IrTypeProjection) { "Unexpected super type argument: $it" }
-            assert(it.variance == Variance.INVARIANT) { "Unexpected variance in super type argument: ${it.variance}" }
-            it.type
-        }
-
-        assert(typeParameters.size == typeArguments.size) {
-            "typeParameters = $typeParameters size != typeArguments = $typeArguments size "
-        }
-
-        val substitutionMap = typeParameters.zip(typeArguments).toMap()
-        val copier =
-            DeepCopyIrTreeWithSymbolsForFakeOverrides(substitutionMap, superType, clazz)
-
-        val deepCopyFakeOverride = copier.copy(member) as IrOverridableMember
-        deepCopyFakeOverride.parent = clazz
-
-        return deepCopyFakeOverride
+    private val fakeOverrideClassQueue = mutableListOf<IrClass>()
+    fun enqueueClass(clazz: IrClass, signature: IdSignature) {
+        fakeOverrideDeclarationTable.assumeDeclarationSignature(clazz, signature)
+        fakeOverrideClassQueue.add(clazz)
     }
 
-    fun buildFakeOverrideChainsForClass(clazz: IrClass) {
+    private fun buildFakeOverrideChainsForClass(clazz: IrClass) {
         if (haveFakeOverrides.contains(clazz)) return
-        if (!platformSpecificClassFilter.constructFakeOverrides(clazz) || !clazz.symbol.isPublicApi) return
+        if (!platformSpecificClassFilter.needToConstructFakeOverrides(clazz)) return
 
         val superTypes = clazz.superTypes
 
@@ -115,24 +101,12 @@ class FakeOverrideBuilder(
         irOverridingUtil.buildFakeOverridesForClass(clazz)
     }
 
-    override fun linkFakeOverride(fakeOverride: IrOverridableMember) {
-        when (fakeOverride) {
-            is IrFakeOverrideFunctionImpl -> linkFunctionFakeOverride(fakeOverride)
-            is IrFakeOverridePropertyImpl -> linkPropertyFakeOverride(fakeOverride)
-            else -> error("Unexpected fake override: $fakeOverride")
-        }
+    override fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunction) {
+        val signature = composeSignature(declaration)
+        declareFunctionFakeOverride(declaration, signature)
     }
 
-    private fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunctionImpl) {
-        val signature = signaturer.composePublicIdSignature(declaration)
-
-        symbolTable.declareSimpleFunctionFromLinker(WrappedSimpleFunctionDescriptor(), signature) {
-            declaration.acquireSymbol(it)
-            declaration
-        }
-    }
-
-    private fun linkPropertyFakeOverride(declaration: IrFakeOverridePropertyImpl) {
+    override fun linkPropertyFakeOverride(declaration: IrFakeOverrideProperty) {
         // To compute a signature for a property with type parameters,
         // we must have its accessor's correspondingProperty pointing to the property's symbol.
         // See IrMangleComputer.mangleTypeParameterReference() for details.
@@ -140,7 +114,7 @@ class FakeOverrideBuilder(
         // To break this loop we use temp symbol in correspondingProperty.
 
         val tempSymbol = IrPropertySymbolImpl(WrappedPropertyDescriptor()).also {
-            it.bind(declaration)
+            it.bind(declaration as IrProperty)
         }
         declaration.getter?.let {
             it.correspondingPropertySymbol = tempSymbol
@@ -149,42 +123,53 @@ class FakeOverrideBuilder(
             it.correspondingPropertySymbol = tempSymbol
         }
 
-        val signature = signaturer.composePublicIdSignature(declaration)
-
-        symbolTable.declarePropertyFromLinker(WrappedPropertyDescriptor(), signature) {
-            declaration.acquireSymbol(it)
-            declaration
-        }
+        val signature = composeSignature(declaration)
+        declarePropertyFakeOverride(declaration, signature)
 
         declaration.getter?.let {
             it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFakeOverrideFunctionImpl
-                ?: error("Unexpected fake override getter: $it")
-            )
+            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override getter: $it"))
         }
         declaration.setter?.let {
             it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFakeOverrideFunctionImpl
-                ?: error("Unexpected fake override setter: $it")
-            )
+            linkFunctionFakeOverride(it as? IrFakeOverrideFunction ?: error("Unexpected fake override setter: $it"))
         }
     }
 
-    fun provideFakeOverrides(module: IrModuleFragment) {
-        module.acceptVoid(object : IrElementVisitorVoid {
-            override fun visitElement(element: IrElement) {
-                element.acceptChildrenVoid(this)
-            }
+    private fun composeSignature(declaration: IrDeclaration) =
+        signaturer.composeSignatureForDeclaration(declaration)
 
-            override fun visitClass(declaration: IrClass) {
-                buildFakeOverrideChainsForClass(declaration)
-                haveFakeOverrides.add(declaration)
-                super.visitClass(declaration)
-            }
+    private fun declareFunctionFakeOverride(declaration: IrFakeOverrideFunction, signature: IdSignature) {
+        val parent = declaration.parentAsClass
+        val symbol = linker.tryReferencingSimpleFunctionByLocalSignature(parent, signature)
+        val descriptor = symbol?.descriptor ?: WrappedSimpleFunctionDescriptor()
+        symbolTable.declareSimpleFunctionFromLinker(descriptor, signature) {
+            assert(it === symbol || symbol == null)
+            declaration.acquireSymbol(it)
+        }
+    }
 
-            override fun visitFunction(declaration: IrFunction) {
-                // Don't go for function local classes
-            }
-        })
+    private fun declarePropertyFakeOverride(declaration: IrFakeOverrideProperty, signature: IdSignature) {
+        val parent = declaration.parentAsClass
+        val symbol = linker.tryReferencingPropertyByLocalSignature(parent, signature)
+        val descriptor = symbol?.descriptor ?: WrappedPropertyDescriptor()
+        symbolTable.declarePropertyFromLinker(descriptor, signature) {
+            assert(it === symbol || symbol == null)
+            declaration.acquireSymbol(it)
+        }
+    }
+
+    private fun provideFakeOverrides(klass: IrClass) {
+        buildFakeOverrideChainsForClass(klass)
+        propertyOverriddenSymbols.clear()
+        irOverridingUtil.clear()
+        haveFakeOverrides.add(klass)
+    }
+
+    fun provideFakeOverrides() {
+        while (fakeOverrideClassQueue.isNotEmpty()) {
+            val klass = fakeOverrideClassQueue.removeLast()
+            provideFakeOverrides(klass)
+        }
     }
 }

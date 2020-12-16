@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.asJava.classes
 
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.*
 import com.intellij.psi.impl.PsiSuperMethodImplUtil
 import com.intellij.psi.impl.java.stubs.PsiJavaFileStub
@@ -49,7 +48,13 @@ open class KtLightClassForScript(val script: KtScript) : KtLazyLightClass(script
 
     private val modifierList: PsiModifierList = LightModifierList(manager, KotlinLanguage.INSTANCE, PsiModifier.PUBLIC)
 
-    private val implementsList: LightEmptyImplementsList = LightEmptyImplementsList(manager)
+    private val scriptImplementsList: LightEmptyImplementsList = LightEmptyImplementsList(manager)
+
+    private val scriptExtendsList: PsiReferenceList by lazyPub {
+        KotlinLightReferenceListBuilder(manager, PsiReferenceList.Role.EXTENDS_LIST).also {
+            it.addReference("kotlin.script.templates.standard.ScriptTemplateWithArgs")
+        }
+    }
 
     private val _containingFile by lazyPub {
         FakeFileForLightClass(
@@ -88,9 +93,9 @@ open class KtLightClassForScript(val script: KtScript) : KtLazyLightClass(script
 
     override fun getDocComment() = null
 
-    override fun getImplementsList() = implementsList
+    override fun getImplementsList(): PsiReferenceList = scriptImplementsList
 
-    override fun getExtendsList(): PsiReferenceList? = implementsList
+    override fun getExtendsList(): PsiReferenceList = scriptExtendsList
 
     override fun getImplementsListTypes(): Array<PsiClassType> = PsiClassType.EMPTY_ARRAY
 
@@ -118,9 +123,11 @@ open class KtLightClassForScript(val script: KtScript) : KtLazyLightClass(script
     override fun getNavigationElement() = script
 
     override fun isEquivalentTo(another: PsiElement?): Boolean =
-        another is PsiClass && Comparing.equal(another.qualifiedName, qualifiedName)
+        equals(another) ||
+                (another is KtLightClassForScript && fqName == another.fqName)
 
-    override fun getElementIcon(flags: Int): Icon? = throw UnsupportedOperationException("This should be done by JetIconProvider")
+    override fun getElementIcon(flags: Int): Icon? =
+        throw UnsupportedOperationException("This should be done by JetIconProvider")
 
     override val originKind: LightClassOriginKind get() = LightClassOriginKind.SOURCE
 
@@ -169,7 +176,7 @@ open class KtLightClassForScript(val script: KtScript) : KtLazyLightClass(script
             return false
         }
 
-        val lightClass = other as KtLightClassForScript
+        val lightClass = other as? KtLightClassForScript ?: return false
         if (this === other) return true
 
         if (this.hashCode != lightClass.hashCode) return false
@@ -201,8 +208,12 @@ open class KtLightClassForScript(val script: KtScript) : KtLazyLightClass(script
                 return null
             }
 
-            if (!forceUsingOldLightClasses && Registry.`is`("kotlin.use.ultra.light.classes", true)) {
-                LightClassGenerationSupport.getInstance(script.project).createUltraLightClassForScript(script)?.let { return it }
+            if (!forceUsingOldLightClasses) {
+                LightClassGenerationSupport.getInstance(script.project).run {
+                    if (useUltraLightClasses) {
+                        return createUltraLightClassForScript(script) ?: error("UL class cannot be created for script")
+                    }
+                }
             }
 
             return KtLightClassForScript(script)

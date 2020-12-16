@@ -6,10 +6,12 @@
 package org.jetbrains.kotlin.psi2ir.generators
 
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
-import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.util.StubGeneratorExtensions
+import org.jetbrains.kotlin.psi.KtPureClassOrObject
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 
@@ -26,7 +28,13 @@ open class GeneratorExtensions : StubGeneratorExtensions() {
         companion object Instance : SamConversion()
     }
 
-    open fun computeFieldVisibility(descriptor: PropertyDescriptor): Visibility? = null
+    open fun computeFieldVisibility(descriptor: PropertyDescriptor): DescriptorVisibility? = null
 
     open fun getParentClassStaticScope(descriptor: ClassDescriptor): MemberScope? = null
+
+    open fun createCustomSuperConstructorCall(
+        ktPureClassOrObject: KtPureClassOrObject,
+        descriptor: ClassDescriptor,
+        context: GeneratorContext,
+    ): IrDelegatingConstructorCall? = null
 }

@@ -114,6 +114,64 @@ sealed class IdSignature {
         override fun hashCode(): Int = accessorSignature.hashCode()
     }
 
+    // KT-42020
+    // This special signature is required to disambiguate fake overrides 'foo(x: T)[T = String]' and 'foo(x: String)' in the code below:
+    //
+    //  open class Base<T> {
+    //      fun foo(x: T) {}
+    //      fun foo(x: String) {}
+    //  }
+    //
+    //  class Derived : Base<String>()
+    //
+    // (NB similar clash is possible for generic member extension properties as well)
+    //
+    // For each fake override 'foo' we collect non-fake overrides overridden by 'foo'
+    // such that their value parameter types contain type parameters of 'Base',
+    // sorted by the fully-qualified name of the containing class.
+    //
+    // NB this special case of IdSignature is JVM-specific.
+    class SpecialFakeOverrideSignature(
+        val memberSignature: IdSignature,
+        val overriddenSignatures: List<IdSignature>
+    ) : IdSignature() {
+        override val isPublic: Boolean
+            get() = memberSignature.isPublic
+
+        override fun topLevelSignature(): IdSignature =
+            memberSignature.topLevelSignature()
+
+        override fun nearestPublicSig(): IdSignature =
+            if (memberSignature.isPublic)
+                this
+            else
+                memberSignature.nearestPublicSig()
+
+        override fun packageFqName(): FqName =
+            memberSignature.packageFqName()
+
+        override fun render(): String =
+            memberSignature.render()
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as SpecialFakeOverrideSignature
+
+            if (memberSignature != other.memberSignature) return false
+            if (overriddenSignatures != other.overriddenSignatures) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = memberSignature.hashCode()
+            result = 31 * result + overriddenSignatures.hashCode()
+            return result
+        }
+    }
+
     class FileLocalSignature(val container: IdSignature, val id: Long) : IdSignature() {
         override val isPublic: Boolean get() = false
 
@@ -135,9 +193,9 @@ sealed class IdSignature {
         override fun render(): String = "${container.render()}:$id"
 
         override fun equals(other: Any?): Boolean =
-            other is FileLocalSignature && id == other.id
+            other is FileLocalSignature && id == other.id && container == other.container
 
-        override fun hashCode(): Int = id.toInt()
+        override fun hashCode(): Int = container.hashCode() * 31 + id.hashCode()
     }
 
     // Used to reference local variable and value parameters in function

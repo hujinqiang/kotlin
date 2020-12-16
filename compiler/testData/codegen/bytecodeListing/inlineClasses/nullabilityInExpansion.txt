@@ -1,5 +1,6 @@
 @kotlin.Metadata
 public final class NullabilityInExpansionKt {
+    // source: 'nullabilityInExpansion.kt'
     public final static @org.jetbrains.annotations.Nullable method qwrap1(p0: int): Q1
     public final static @org.jetbrains.annotations.Nullable method qwrap2(p0: int): Q2
     public final static @org.jetbrains.annotations.Nullable method qwrapN(p0: int): QN
@@ -18,9 +19,11 @@ public final class NullabilityInExpansionKt {
     public final static @org.jetbrains.annotations.NotNull method zwrapNbox(p0: int): Z1
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class Q1 {
-    private final field x: java.lang.Integer
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field x: java.lang.Integer
     private synthetic method <init>(p0: java.lang.Integer): void
     public synthetic final static method box-impl(p0: java.lang.Integer): Q1
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: java.lang.Integer): java.lang.Integer
@@ -35,9 +38,11 @@ public final class Q1 {
     public synthetic final method unbox-impl(): java.lang.Integer
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class Q2 {
-    private final field z: java.lang.Integer
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field z: java.lang.Integer
     private synthetic method <init>(p0: java.lang.Integer): void
     public synthetic final static method box-impl(p0: java.lang.Integer): Q2
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: java.lang.Integer): java.lang.Integer
@@ -52,9 +57,11 @@ public final class Q2 {
     public synthetic final method unbox-impl(): java.lang.Integer
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class QN {
-    private final field z: Q1
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field z: Q1
     private synthetic method <init>(p0: Q1): void
     public synthetic final static method box-impl(p0: Q1): QN
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: Q1): Q1
@@ -69,9 +76,11 @@ public final class QN {
     public synthetic final method unbox-impl(): Q1
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class S1 {
-    private final field x: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field x: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): S1
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: java.lang.String): java.lang.String
@@ -86,9 +95,11 @@ public final class S1 {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class S2 {
-    private final field z: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field z: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): S2
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: java.lang.String): java.lang.String
@@ -103,9 +114,11 @@ public final class S2 {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class SN {
-    private final field z: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field z: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): SN
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: java.lang.String): java.lang.String
@@ -120,9 +133,11 @@ public final class SN {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class SN2 {
-    private final field z: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field z: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): SN2
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: java.lang.String): java.lang.String
@@ -137,9 +152,11 @@ public final class SN2 {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class W1 {
-    private final field x: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field x: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): W1
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: java.lang.String): java.lang.String
@@ -154,9 +171,11 @@ public final class W1 {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class W2 {
-    private final field z: java.lang.String
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field z: java.lang.String
     private synthetic method <init>(p0: java.lang.String): void
     public synthetic final static method box-impl(p0: java.lang.String): W2
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: java.lang.String): java.lang.String
@@ -171,9 +190,11 @@ public final class W2 {
     public synthetic final method unbox-impl(): java.lang.String
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class WN {
-    private final field z: W1
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field z: W1
     private synthetic method <init>(p0: W1): void
     public synthetic final static method box-impl(p0: W1): WN
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: W1): W1
@@ -188,8 +209,10 @@ public final class WN {
     public synthetic final method unbox-impl(): W1
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class Z1 {
+    // source: 'nullabilityInExpansion.kt'
     private final field x: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): Z1
@@ -205,8 +228,10 @@ public final class Z1 {
     public synthetic final method unbox-impl(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class Z2 {
+    // source: 'nullabilityInExpansion.kt'
     private final field z: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): Z2
@@ -222,9 +247,11 @@ public final class Z2 {
     public synthetic final method unbox-impl(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class ZN {
-    private final field z: Z1
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.Nullable field z: Z1
     private synthetic method <init>(p0: Z1): void
     public synthetic final static method box-impl(p0: Z1): ZN
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.Nullable p0: Z1): Z1
@@ -239,9 +266,11 @@ public final class ZN {
     public synthetic final method unbox-impl(): Z1
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class ZN2 {
-    private final field z: Z1
+    // source: 'nullabilityInExpansion.kt'
+    private final @org.jetbrains.annotations.NotNull field z: Z1
     private synthetic method <init>(p0: Z1): void
     public synthetic final static method box-impl(p0: Z1): ZN2
     public static @org.jetbrains.annotations.NotNull method constructor-impl(@org.jetbrains.annotations.NotNull p0: Z1): Z1

@@ -33,7 +33,7 @@ abstract class FirAnonymousObject : FirClass<FirAnonymousObject>, FirControlFlow
     abstract override val declarations: List<FirDeclaration>
     abstract override val annotations: List<FirAnnotationCall>
     abstract override val scopeProvider: FirScopeProvider
-    abstract override val controlFlowGraphReference: FirControlFlowGraphReference
+    abstract override val controlFlowGraphReference: FirControlFlowGraphReference?
     abstract override val typeRef: FirTypeRef
     abstract override val symbol: FirAnonymousObjectSymbol
 
@@ -43,13 +43,15 @@ abstract class FirAnonymousObject : FirClass<FirAnonymousObject>, FirControlFlow
 
     abstract override fun replaceSuperTypeRefs(newSuperTypeRefs: List<FirTypeRef>)
 
+    abstract override fun replaceControlFlowGraphReference(newControlFlowGraphReference: FirControlFlowGraphReference?)
+
     abstract override fun replaceTypeRef(newTypeRef: FirTypeRef)
+
+    abstract override fun <D> transformTypeParameters(transformer: FirTransformer<D>, data: D): FirAnonymousObject
 
     abstract override fun <D> transformSuperTypeRefs(transformer: FirTransformer<D>, data: D): FirAnonymousObject
 
     abstract override fun <D> transformDeclarations(transformer: FirTransformer<D>, data: D): FirAnonymousObject
 
     abstract override fun <D> transformAnnotations(transformer: FirTransformer<D>, data: D): FirAnonymousObject
-
-    abstract override fun <D> transformControlFlowGraphReference(transformer: FirTransformer<D>, data: D): FirAnonymousObject
 }

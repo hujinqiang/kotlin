@@ -104,16 +104,13 @@ private class NativePlatformDependencyResolver(val project: Project, val kotlinV
         check(!alreadyResolved)
         alreadyResolved = true
 
-        val targetGroups: List<Pair<CommonizedCommon, Set<KonanTarget>>> =
-            dependencies.keys
-                .filterIsInstance<CommonizedCommon>()
-                .map { it to it.targets }
+        val targetGroups: List<CommonizedCommon> = dependencies.keys.filterIsInstance<CommonizedCommon>()
 
-        val commonizerTaskParams = CommonizerTaskParams(
+        val commonizerTaskParams = CommonizerTaskParams.build(
+            kotlinVersion,
+            targetGroups.map { it.targets },
             distributionDir,
-            distributionDir.resolve(KONAN_DISTRIBUTION_KLIB_DIR).resolve(KONAN_DISTRIBUTION_COMMONIZED_LIBS_DIR),
-            targetGroups.map { it.second },
-            kotlinVersion
+            distributionDir.resolve(KONAN_DISTRIBUTION_KLIB_DIR).resolve(KONAN_DISTRIBUTION_COMMONIZED_LIBS_DIR)
         )
 
         val commonizerTaskProvider = project.registerTask(
@@ -122,10 +119,9 @@ private class NativePlatformDependencyResolver(val project: Project, val kotlinV
             listOf(commonizerTaskParams)
         ) {}
 
-        val commonizedLibsDirs =
-            commonizerTaskParams.destinationDirs
-                .mapIndexed { index: Int, commonizedLibsDir: File -> targetGroups[index].first to commonizedLibsDir }
-                .toMap()
+        val commonizedLibsDirs: Map<CommonizedCommon, File> = commonizerTaskParams.subtasks.mapIndexed { index, subtask ->
+            targetGroups[index] to subtask.destinationDir
+        }.toMap()
 
         // then, resolve dependencies one by one
         dependencies.forEach { (dependency, actions) ->
@@ -289,16 +285,16 @@ private fun Project.findSourceSetsToAddCommonizedPlatformDependencies(): Map<Kot
                  * Why? Consider this example: There is `watchos()` shortcut in Gradle DSL that creates few native targets
                  * in HMPP project with the corresponding source set hierarchy:
                  *
-                 *                    watchosMain [commonized targets: watchosX86, watchosArm32, watchosArm64]
+                 *                    watchosMain [commonized targets: watchosX64, watchosArm32, watchosArm64]
                  *                   /           \
-                 *     watchosX86Main             watchosDeviceMain [commonized targets: watchosArm32, watchosArm64]
+                 *     watchosX64Main             watchosDeviceMain [commonized targets: watchosArm32, watchosArm64]
                  *                               /                 \
                  *               watchosArm32Main                   watchosArm64Main
                  *
                  * There are two common native source sets that participate in commonization process:
                  *
                  * 1. `watchosMain`. This source set is included into three native compilations for different native targets.
-                 *    Thus, it has three commonized targets: watchosX86, watchosArm32 and watchosArm64.
+                 *    Thus, it has three commonized targets: watchosX64, watchosArm32 and watchosArm64.
                  *
                  * 2. `watchosDeviceMain`. Two native compilations -> two commonized targets: watchosArm32 and watchosArm64.
                  *
@@ -306,7 +302,7 @@ private fun Project.findSourceSetsToAddCommonizedPlatformDependencies(): Map<Kot
                  *
                  * - When `watchosArm64Main` is processed with `watchosMain`, the dependencies are evaluated from `watchosMain`
                  *   viewpoint. This means the following: the leaf source set should get the libraries with `actual` declarations
-                 *   produced as a result of commonization of the three targets: watchosX86, watchosArm32 and watchosArm64.
+                 *   produced as a result of commonization of the three targets: watchosX64, watchosArm32 and watchosArm64.
                  *
                  * - When `watchosArm64Main` is processed with `watchosDeviceMain`, which is immediate parent according to the hierarchy,
                  *   the dependencies are evaluated from `watchosDeviceMain` viewpoint. Assuming libraries with `actual` declarations

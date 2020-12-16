@@ -5,58 +5,52 @@
 
 package org.jetbrains.kotlin.idea.fir
 
-import com.intellij.psi.util.parentOfType
-import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirFile
-import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
+import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
+import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirReference
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
+import org.jetbrains.kotlin.fir.resolve.diagnostics.*
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.idea.fir.low.level.api.LowLevelFirApiFacade
-import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.idea.frontend.api.fir.KtSymbolByFirBuilder
+import org.jetbrains.kotlin.idea.frontend.api.symbols.KtSymbol
 import org.jetbrains.kotlin.util.OperatorNameConventions
-import kotlin.reflect.KClass
 
-fun KtElement.getOrBuildFir(
-    phase: FirResolvePhase = FirResolvePhase.BODY_RESOLVE
-) = LowLevelFirApiFacade.getOrBuildFirFor(this, phase)
-
-inline fun <reified E : FirElement> KtElement.getOrBuildFirSafe(
-    phase: FirResolvePhase = FirResolvePhase.BODY_RESOLVE
-) = LowLevelFirApiFacade.getOrBuildFirFor(this, phase) as? E
-
-inline fun <reified E : FirElement> KtElement.getOrBuildFirOfType(
-    phase: FirResolvePhase = FirResolvePhase.BODY_RESOLVE
-): E {
-    val fir = LowLevelFirApiFacade.getOrBuildFirFor(this, phase)
-    if (fir is E) return fir
-    throw InvalidFirElementTypeException(this, E::class, fir::class)
-}
-
-class InvalidFirElementTypeException(
-    ktElement: KtElement,
-    expectedFirClass: KClass<out FirElement>,
-    actualFirClass: KClass<out FirElement>
-) : IllegalStateException("For $ktElement with text `${ktElement.text}` the $expectedFirClass expected, but $actualFirClass found")
-
-
-val KtElement.session
-    get() = parentOfType<KtDeclaration>()?.getOrBuildFirSafe<FirDeclaration>()?.session
-        ?: containingKtFile.getOrBuildFirSafe<FirFile>()!!.session
 
 fun FirFunctionCall.isImplicitFunctionCall(): Boolean {
     if (dispatchReceiver !is FirQualifiedAccessExpression) return false
-    val resolvedCalleeSymbol = (calleeReference as? FirResolvedNamedReference)?.resolvedSymbol
-    return (resolvedCalleeSymbol as? FirNamedFunctionSymbol)?.fir?.name == OperatorNameConventions.INVOKE
+    return calleeReference.getCandidateSymbols().any(FirBasedSymbol<*>::isInvokeFunction)
 }
+
+private fun FirBasedSymbol<*>.isInvokeFunction() =
+    (this as? FirNamedFunctionSymbol)?.fir?.name == OperatorNameConventions.INVOKE
 
 fun FirFunctionCall.getCalleeSymbol(): FirBasedSymbol<*>? =
     calleeReference.getResolvedSymbolOfNameReference()
 
 fun FirReference.getResolvedSymbolOfNameReference(): FirBasedSymbol<*>? =
     (this as? FirResolvedNamedReference)?.resolvedSymbol
+
+internal fun FirReference.getResolvedKtSymbolOfNameReference(builder: KtSymbolByFirBuilder): KtSymbol? =
+    (getResolvedSymbolOfNameReference()?.fir as? FirDeclaration)?.let { firDeclaration ->
+        builder.buildSymbol(firDeclaration)
+    }
+
+internal fun FirErrorNamedReference.getCandidateSymbols(): Collection<FirBasedSymbol<*>> =
+    when (val diagnostic = diagnostic) {
+        is ConeInapplicableCandidateError -> listOf(diagnostic.candidateSymbol)
+        is ConeHiddenCandidateError -> listOf(diagnostic.candidateSymbol)
+        is ConeAmbiguityError -> diagnostic.candidates
+        is ConeOperatorAmbiguityError -> diagnostic.candidates
+        is ConeUnsupportedCallableReferenceTarget -> listOf(diagnostic.fir.symbol)
+        else -> emptyList()
+    }
+
+internal fun FirNamedReference.getCandidateSymbols(): Collection<FirBasedSymbol<*>> = when(this) {
+    is FirResolvedNamedReference -> listOf(resolvedSymbol)
+    is FirErrorNamedReference -> getCandidateSymbols()
+    else -> emptyList()
+}

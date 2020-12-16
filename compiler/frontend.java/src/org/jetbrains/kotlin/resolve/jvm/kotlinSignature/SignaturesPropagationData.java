@@ -88,7 +88,8 @@ public class SignaturesPropagationData {
                 Annotations.Companion.getEMPTY(),
                 method.getName(),
                 //TODO: what to do?
-                SourceElement.NO_SOURCE
+                SourceElement.NO_SOURCE,
+                false
         );
         autoMethodDescriptor.initialize(
                 null,
@@ -97,7 +98,7 @@ public class SignaturesPropagationData {
                 autoValueParameters,
                 autoReturnType,
                 Modality.OPEN,
-                Visibilities.PUBLIC
+                DescriptorVisibilities.PUBLIC
         );
         return autoMethodDescriptor;
     }

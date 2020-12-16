@@ -114,6 +114,7 @@ enum class KaptFlag(val description: String) {
     STRICT("Strict mode"),
     INCLUDE_COMPILE_CLASSPATH("Detect annotation processors in compile classpath"),
     INCREMENTAL_APT("Incremental annotation processing (apt mode)"),
+    STRIP_METADATA("Strip @Metadata annotations from stubs")
     ;
 }
 
@@ -163,6 +164,15 @@ fun KaptOptions.collectJavaSourceFiles(sourcesToReprocess: SourcesToReprocess = 
             } else {
                 emptyList()
             }
+        }
+    }
+}
+
+fun collectAggregatedTypes(sourcesToReprocess: SourcesToReprocess = SourcesToReprocess.FullRebuild): List<String> {
+    return when (sourcesToReprocess) {
+        is SourcesToReprocess.FullRebuild -> emptyList()
+        is SourcesToReprocess.Incremental -> {
+            sourcesToReprocess.unchangedAggregatedTypes
         }
     }
 }

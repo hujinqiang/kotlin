@@ -54,8 +54,15 @@ object SerializationPluginErrorsRendering : DefaultErrorMessages.Extension {
         MAP.put(
             SerializationErrors.SERIALIZER_NULLABILITY_INCOMPATIBLE,
             "Type ''{1}'' is non-nullable and therefore can not be serialized with serializer for nullable type ''{0}''",
-            Renderers.RENDER_TYPE_WITH_ANNOTATIONS,
-            Renderers.RENDER_TYPE_WITH_ANNOTATIONS
+            Renderers.RENDER_TYPE,
+            Renderers.RENDER_TYPE
+        )
+        MAP.put(
+            SerializationErrors.SERIALIZER_TYPE_INCOMPATIBLE,
+            "Class ''{1}'', which is serializer for type ''{2}'', is applied here to type ''{0}''. This may lead to errors or incorrect behavior.",
+            Renderers.RENDER_TYPE,
+            Renderers.RENDER_TYPE,
+            Renderers.RENDER_TYPE
         )
         MAP.put(
             SerializationErrors.TRANSIENT_MISSING_INITIALIZER,
@@ -68,6 +75,23 @@ object SerializationPluginErrorsRendering : DefaultErrorMessages.Extension {
         MAP.put(
             SerializationErrors.INCORRECT_TRANSIENT,
             "@kotlin.jvm.Transient does not affect @Serializable classes. Please use @kotlinx.serialization.Transient instead."
+        )
+        MAP.put(
+            SerializationErrors.REQUIRED_KOTLIN_TOO_HIGH,
+            "Your current Kotlin version is {0}, while kotlinx.serialization core runtime {1} requires at least Kotlin {2}. " +
+                    "Please update your Kotlin compiler and IDE plugin.",
+            Renderers.STRING,
+            Renderers.STRING,
+            Renderers.STRING
+        )
+
+        MAP.put(
+            SerializationErrors.PROVIDED_RUNTIME_TOO_LOW,
+            "Your current kotlinx.serialization core version is {0}, while current Kotlin compiler plugin {1} requires at least {2}. " +
+                    "Please update your kotlinx.serialization runtime dependency.",
+            Renderers.STRING,
+            Renderers.STRING,
+            Renderers.STRING
         )
     }
 }

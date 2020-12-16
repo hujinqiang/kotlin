@@ -33,6 +33,9 @@ constructor(
     }
 
     @Input
+    var nodeArgs: MutableList<String> = mutableListOf()
+
+    @Input
     var sourceMapStackTraces = true
 
     @Optional
@@ -52,9 +55,13 @@ constructor(
         }
 
     override fun exec() {
+        val newArgs = mutableListOf<String>()
+        newArgs.addAll(nodeArgs)
         if (inputFileProperty.isPresent) {
-            args(inputFileProperty.asFile.get())
+            newArgs.add(inputFileProperty.asFile.get().canonicalPath)
         }
+        args?.let { newArgs.addAll(it) }
+        args = newArgs
 
         if (sourceMapStackTraces) {
             val sourceMapSupportArgs = mutableListOf(
@@ -79,6 +86,7 @@ constructor(
             val target = compilation.target
             val project = target.project
             val nodeJs = NodeJsRootPlugin.apply(project.rootProject)
+            val npmProject = compilation.npmProject
 
             return project.registerTask(
                 name,
@@ -86,6 +94,7 @@ constructor(
             ) {
                 it.nodeJs = nodeJs
                 it.executable = nodeJs.requireConfigured().nodeExecutable
+                it.workingDir = npmProject.dir
                 it.dependsOn(nodeJs.npmInstallTaskProvider)
 
                 it.dependsOn(nodeJs.npmInstallTaskProvider, compilation.compileKotlinTaskProvider)

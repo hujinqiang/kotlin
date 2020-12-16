@@ -8,24 +8,23 @@ package org.jetbrains.kotlin.fir
 import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.fir.expressions.FirBlock
 import org.jetbrains.kotlin.fir.expressions.FirExpression
-import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.types.FirDynamicTypeRef
+import org.jetbrains.kotlin.fir.types.FirErrorTypeRef
+import org.jetbrains.kotlin.fir.types.FirImplicitTypeRef
+import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.builder.*
 import org.jetbrains.kotlin.fir.types.impl.*
-import org.jetbrains.kotlin.fir.types.impl.FirFunctionTypeRefImpl
 
 fun ModuleInfo.dependenciesWithoutSelf(): Sequence<ModuleInfo> = dependencies().asSequence().filter { it != this }
 
 // TODO: rewrite
 fun FirBlock.returnExpressions(): List<FirExpression> = listOfNotNull(statements.lastOrNull() as? FirExpression)
 
-private val PUBLIC_METHOD_NAMES_IN_OBJECT = setOf("equals", "hashCode", "getClass", "wait", "notify", "notifyAll", "toString")
-
 // do we need a deep copy here ?
 fun <R : FirTypeRef> R.copyWithNewSourceKind(newKind: FirFakeSourceElementKind): R {
     if (source == null) return this
     if (source?.kind == newKind) return this
-    if (this is FirDelegatedTypeRef) return this
-    val newSource = source?.withKind(newKind)
+    val newSource = source?.fakeElement(newKind)
 
     @Suppress("UNCHECKED_CAST")
     return when (val typeRef = this) {
@@ -41,17 +40,16 @@ fun <R : FirTypeRef> R.copyWithNewSourceKind(newKind: FirFakeSourceElementKind):
             qualifier += typeRef.qualifier
             annotations += typeRef.annotations
         }
-        is FirResolvedFunctionTypeRef -> buildResolvedFunctionTypeRefCopy(typeRef) {
-            source = newSource
-        }
         is FirImplicitTypeRef -> buildImplicitTypeRefCopy(typeRef) {
-            source = newSource
-        }
-        is FirComposedSuperTypeRef -> buildComposedSuperTypeRefCopy(typeRef) {
             source = newSource
         }
         is FirFunctionTypeRefImpl -> buildFunctionTypeRefCopy(typeRef) {
             source = newSource
+        }
+        is FirDynamicTypeRef -> buildDynamicTypeRef {
+            source = newSource
+            isMarkedNullable = typeRef.isMarkedNullable
+            annotations += typeRef.annotations
         }
         is FirImplicitBuiltinTypeRef -> typeRef.withFakeSource(newKind)
         else -> TODO("Not implemented for ${typeRef::class}")

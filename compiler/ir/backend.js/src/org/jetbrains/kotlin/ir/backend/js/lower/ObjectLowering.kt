@@ -14,12 +14,13 @@ import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
+import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.buildField
+import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.IrBlockBodyImpl
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
@@ -39,10 +40,11 @@ class ObjectDeclarationLowering(
 
         val getInstanceFun = context.getOrCreateGetInstanceFunction(declaration)
 
-        val instanceField = buildField {
+        val instanceField = context.irFactory.buildField {
             name = Name.identifier(declaration.name.asString() + "_instance")
             type = declaration.defaultType.makeNullable()
             isStatic = true
+            origin = IrDeclarationOrigin.FIELD_FOR_OBJECT_INSTANCE
         }.apply {
             parent = declaration.parent
             initializer = null  // Initialized with 'undefined'
@@ -52,7 +54,7 @@ class ObjectDeclarationLowering(
 
         val primaryConstructor = declaration.primaryConstructor ?: declaration.syntheticPrimaryConstructor!!
 
-        getInstanceFun.body = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
+        getInstanceFun.body = context.irFactory.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET) {
             statements += context.createIrBuilder(getInstanceFun.symbol).irBlockBody(getInstanceFun) {
                 +irIfThen(
                     irEqualsNull(irGetField(null, instanceField)),
@@ -106,11 +108,13 @@ class ObjectUsageLowering(
     }
 }
 
-fun JsCommonBackendContext.getOrCreateGetInstanceFunction(obj: IrClass) =
+private fun JsCommonBackendContext.getOrCreateGetInstanceFunction(obj: IrClass) =
     mapping.objectToGetInstanceFunction.getOrPut(obj) {
-        JsIrBuilder.buildFunction(
-            obj.name.asString() + "_getInstance",
-            returnType = obj.defaultType,
+        irFactory.buildFun {
+            name = Name.identifier(obj.name.asString() + "_getInstance")
+            returnType = obj.defaultType
+            origin = JsLoweredDeclarationOrigin.OBJECT_GET_INSTANCE_FUNCTION
+        }.apply {
             parent = obj.parent
-        )
+        }
     }

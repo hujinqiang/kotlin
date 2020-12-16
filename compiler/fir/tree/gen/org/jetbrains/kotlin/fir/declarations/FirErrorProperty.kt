@@ -51,6 +51,8 @@ abstract class FirErrorProperty : FirVariable<FirErrorProperty>(), FirDiagnostic
 
     abstract override fun replaceReceiverTypeRef(newReceiverTypeRef: FirTypeRef?)
 
+    abstract override fun replaceInitializer(newInitializer: FirExpression?)
+
     abstract override fun <D> transformReturnTypeRef(transformer: FirTransformer<D>, data: D): FirErrorProperty
 
     abstract override fun <D> transformReceiverTypeRef(transformer: FirTransformer<D>, data: D): FirErrorProperty
@@ -64,6 +66,8 @@ abstract class FirErrorProperty : FirVariable<FirErrorProperty>(), FirDiagnostic
     abstract override fun <D> transformSetter(transformer: FirTransformer<D>, data: D): FirErrorProperty
 
     abstract override fun <D> transformAnnotations(transformer: FirTransformer<D>, data: D): FirErrorProperty
+
+    abstract override fun <D> transformTypeParameters(transformer: FirTransformer<D>, data: D): FirErrorProperty
 
     abstract override fun <D> transformOtherChildren(transformer: FirTransformer<D>, data: D): FirErrorProperty
 }

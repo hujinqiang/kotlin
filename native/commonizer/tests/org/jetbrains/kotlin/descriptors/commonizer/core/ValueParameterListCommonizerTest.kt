@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.descriptors.commonizer.core
 
 import org.jetbrains.kotlin.descriptors.commonizer.cir.CirValueParameter
 import org.jetbrains.kotlin.descriptors.commonizer.core.CirTestValueParameter.Companion.areEqual
-import org.jetbrains.kotlin.descriptors.commonizer.utils.EMPTY_CLASSIFIERS_CACHE
+import org.jetbrains.kotlin.descriptors.commonizer.utils.MOCK_CLASSIFIERS
 import org.junit.Test
 
 class ValueParameterListCommonizerTest : AbstractCommonizerTest<List<CirValueParameter>, List<CirValueParameter>>() {
@@ -107,9 +107,9 @@ class ValueParameterListCommonizerTest : AbstractCommonizerTest<List<CirValuePar
         )
     )
 
-    @Test(expected = IllegalCommonizerStateException::class)
-    fun mismatchedParameterNames1() = doTestFailure(
-        mockValueParams(
+    @Test // types match, names doesn't match, without rewriting names the commonizer chooses the names from the first list of parameters
+    fun mismatchedParameterNames() = doTestSuccess(
+        expected = mockValueParams(
             "a" to "kotlin.String",
             "b" to "kotlin.Int",
             "c" to "org.sample.Foo"
@@ -120,28 +120,14 @@ class ValueParameterListCommonizerTest : AbstractCommonizerTest<List<CirValuePar
             "c" to "org.sample.Foo"
         ),
         mockValueParams(
-            "a1" to "kotlin.String",
-            "b" to "kotlin.Int",
-            "c" to "org.sample.Foo"
-        )
-    )
-
-    @Test(expected = IllegalCommonizerStateException::class)
-    fun mismatchedParameterNames2() = doTestFailure(
-        mockValueParams(
-            "a" to "kotlin.String",
-            "b" to "kotlin.Int",
-            "c" to "org.sample.Foo"
+            "d" to "kotlin.String",
+            "e" to "kotlin.Int",
+            "f" to "org.sample.Foo"
         ),
         mockValueParams(
-            "a" to "kotlin.String",
-            "b" to "kotlin.Int",
-            "c" to "org.sample.Foo"
-        ),
-        mockValueParams(
-            "a" to "kotlin.String",
-            "b" to "kotlin.Int",
-            "c1" to "org.sample.Foo"
+            "h" to "kotlin.String",
+            "i" to "kotlin.Int",
+            "j" to "org.sample.Foo"
         )
     )
 
@@ -164,7 +150,7 @@ class ValueParameterListCommonizerTest : AbstractCommonizerTest<List<CirValuePar
         )
     )
 
-    override fun createCommonizer() = ValueParameterListCommonizer(EMPTY_CLASSIFIERS_CACHE)
+    override fun createCommonizer() = ValueParameterListCommonizer(MOCK_CLASSIFIERS)
 
     override fun isEqual(a: List<CirValueParameter>?, b: List<CirValueParameter>?): Boolean {
         if (a === b)
@@ -173,7 +159,7 @@ class ValueParameterListCommonizerTest : AbstractCommonizerTest<List<CirValuePar
             return false
 
         for (i in a.indices) {
-            if (!areEqual(EMPTY_CLASSIFIERS_CACHE, a[i], b[i]))
+            if (!areEqual(MOCK_CLASSIFIERS, a[i], b[i]))
                 return false
         }
 

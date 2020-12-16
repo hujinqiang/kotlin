@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.fir.declarations.FirSimpleFunction
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.builder.buildArrayOfCall
-import org.jetbrains.kotlin.fir.resolve.transformers.getOriginalFunction
+import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
+import org.jetbrains.kotlin.fir.resolve.calls.FirNamedReferenceWithCandidate
+import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
 import org.jetbrains.kotlin.fir.types.isArrayType
 
 /**
@@ -59,8 +61,17 @@ internal class FirArrayOfCallTransformer {
         private fun isArrayOf(function: FirSimpleFunction, arguments: List<FirExpression>): Boolean =
             when (function.symbol.callableId.toString()) {
                 "kotlin/emptyArray" -> function.valueParameters.isEmpty() && arguments.isEmpty()
-                in arrayOfNames -> function.valueParameters.size == 1 && function.valueParameters[0].isVararg && arguments.size == 1
+                in arrayOfNames -> function.valueParameters.size == 1 && function.valueParameters[0].isVararg && arguments.size <= 1
                 else -> false
             }
     }
+}
+
+private fun FirFunctionCall.getOriginalFunction(): FirCallableDeclaration<*>? {
+    val symbol: AbstractFirBasedSymbol<*>? = when (val reference = calleeReference) {
+        is FirResolvedNamedReference -> reference.resolvedSymbol
+        is FirNamedReferenceWithCandidate -> reference.candidateSymbol
+        else -> null
+    }
+    return symbol?.fir as? FirCallableDeclaration<*>
 }

@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaArrayType
 import org.jetbrains.kotlin.load.java.structure.JavaField
 import org.jetbrains.kotlin.load.java.structure.JavaMethod
 import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
+import org.jetbrains.kotlin.load.java.toDescriptorVisibility
 import org.jetbrains.kotlin.load.kotlin.computeJvmDescriptor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.*
@@ -81,6 +82,10 @@ abstract class LazyJavaScope(
     // Fake overrides, values()/valueOf(), etc.
     protected abstract fun computeNonDeclaredFunctions(result: MutableCollection<SimpleFunctionDescriptor>, name: Name)
 
+    // It has a similar semantics to computeNonDeclaredFunctions, but it's being called just once per class
+    // While computeNonDeclaredFunctions is being called once per scope instance (once per KotlinTypeRefiner)
+    protected open fun computeImplicitlyDeclaredFunctions(result: MutableCollection<SimpleFunctionDescriptor>, name: Name) {}
+
     protected abstract fun getDispatchReceiverParameter(): ReceiverParameterDescriptor?
 
     private val declaredFunctions: MemoizedFunctionToNotNull<Name, Collection<SimpleFunctionDescriptor>> =
@@ -96,6 +101,8 @@ abstract class LazyJavaScope(
                 c.components.javaResolverCache.recordMethod(method, descriptor)
                 result.add(descriptor)
             }
+
+            computeImplicitlyDeclaredFunctions(result, name)
 
             result
         }
@@ -153,7 +160,8 @@ abstract class LazyJavaScope(
     protected fun resolveMethodToFunctionDescriptor(method: JavaMethod): JavaMethodDescriptor {
         val annotations = c.resolveAnnotations(method)
         val functionDescriptorImpl = JavaMethodDescriptor.createJavaMethod(
-            ownerDescriptor, annotations, method.name, c.components.sourceElementFactory.source(method)
+            ownerDescriptor, annotations, method.name, c.components.sourceElementFactory.source(method),
+            declaredMemberIndex().findRecordComponentByName(method.name) != null && method.valueParameters.isEmpty()
         )
 
         val c = c.childForMethod(functionDescriptorImpl, method)
@@ -173,8 +181,8 @@ abstract class LazyJavaScope(
             effectiveSignature.typeParameters,
             effectiveSignature.valueParameters,
             effectiveSignature.returnType,
-            Modality.convertFromFlags(method.isAbstract, !method.isFinal),
-            method.visibility,
+            Modality.convertFromFlags(sealed = false, method.isAbstract, !method.isFinal),
+            method.visibility.toDescriptorVisibility(),
             if (effectiveSignature.receiverType != null)
                 mapOf(JavaMethodDescriptor.ORIGINAL_VALUE_PARAMETER_FOR_EXTENSION_RECEIVER to valueParameters.descriptors.first())
             else
@@ -321,7 +329,7 @@ abstract class LazyJavaScope(
         val annotations = c.resolveAnnotations(field)
 
         return JavaPropertyDescriptor.create(
-            ownerDescriptor, annotations, Modality.FINAL, field.visibility, isVar, field.name,
+            ownerDescriptor, annotations, Modality.FINAL, field.visibility.toDescriptorVisibility(), isVar, field.name,
             c.components.sourceElementFactory.source(field), /* isConst = */ field.isFinalStatic
         )
     }

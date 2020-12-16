@@ -7,7 +7,13 @@ plugins {
 
 kotlin {
     js(IR) {
-        nodejs()
+        nodejs {
+            testTask {
+                useMocha {
+                    timeout = "10s"
+                }
+            }
+        }
     }
 }
 
@@ -27,6 +33,8 @@ val builtInsHeader = """@file:Suppress(
 """
 
 val commonMainSources by task<Sync> {
+    dependsOn(":prepare:build.version:writeStdlibVersion")
+
     val sources = listOf(
         "libraries/stdlib/common/src/",
         "libraries/stdlib/src/kotlin/",
@@ -139,6 +147,15 @@ tasks.withType<KotlinCompile<*>>().configureEach {
 
 val compileKotlinJs by tasks.existing(KotlinCompile::class) {
     kotlinOptions.freeCompilerArgs += "-Xir-module-name=kotlin"
+}
+
+
+val compileTestKotlinJs by tasks.existing(KotlinCompile::class) {
+    doFirst {
+        // Note: common test sources are copied to the actual source directory by commonMainSources task,
+        // so can't do this at configuration time:
+        kotlinOptions.freeCompilerArgs += "-Xcommon-sources=${kotlin.sourceSets["commonTest"].kotlin.joinToString(",")}"
+    }
 }
 
 val packFullRuntimeKLib by tasks.registering(Jar::class) {

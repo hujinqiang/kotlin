@@ -5,12 +5,15 @@
 
 package org.jetbrains.kotlin.tools.projectWizard.core.service
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser.parseString
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.tools.projectWizard.Versions
 import org.jetbrains.kotlin.tools.projectWizard.core.TaskResult
 import org.jetbrains.kotlin.tools.projectWizard.core.asNullable
 import org.jetbrains.kotlin.tools.projectWizard.core.compute
 import org.jetbrains.kotlin.tools.projectWizard.core.safe
+import org.jetbrains.kotlin.tools.projectWizard.plugins.kotlin.ProjectKind
 import org.jetbrains.kotlin.tools.projectWizard.settings.buildsystem.DefaultRepository
 import org.jetbrains.kotlin.tools.projectWizard.settings.buildsystem.Repositories
 import org.jetbrains.kotlin.tools.projectWizard.settings.buildsystem.Repository
@@ -23,7 +26,7 @@ import java.util.stream.Collectors
 data class WizardKotlinVersion(val version: Version, val kind: KotlinVersionKind, val repository: Repository)
 
 abstract class KotlinVersionProviderService : WizardService {
-    abstract fun getKotlinVersion(): WizardKotlinVersion
+    abstract fun getKotlinVersion(projectKind: ProjectKind): WizardKotlinVersion
 
     protected fun kotlinVersionWithDefaultValues(version: Version) = WizardKotlinVersion(
         version,
@@ -32,9 +35,7 @@ abstract class KotlinVersionProviderService : WizardService {
     )
 
     protected open fun getKotlinVersionRepository(versionKind: KotlinVersionKind): Repository = when (versionKind) {
-        KotlinVersionKind.STABLE -> DefaultRepository.MAVEN_CENTRAL
-        KotlinVersionKind.EAP -> Repositories.KOTLIN_EAP_BINTRAY
-        KotlinVersionKind.M -> Repositories.KOTLIN_EAP_BINTRAY
+        KotlinVersionKind.STABLE, KotlinVersionKind.EAP, KotlinVersionKind.M -> DefaultRepository.MAVEN_CENTRAL
         KotlinVersionKind.DEV -> Repositories.KOTLIN_DEV_BINTRAY
     }
 
@@ -52,7 +53,7 @@ abstract class KotlinVersionProviderService : WizardService {
 
 
 class KotlinVersionProviderServiceImpl : KotlinVersionProviderService(), IdeaIndependentWizardService {
-    override fun getKotlinVersion(): WizardKotlinVersion =
+    override fun getKotlinVersion(projectKind: ProjectKind): WizardKotlinVersion =
         kotlinVersionWithDefaultValues(Versions.KOTLIN)
 }
 
@@ -68,11 +69,26 @@ val KotlinVersionKind.isStable
     get() = this == KotlinVersionKind.STABLE
 
 object EapVersionDownloader {
-    fun getLatestEapVersion() = downloadVersions(EAP_URL).firstOrNull()
+    fun getLatestEapVersion() = downloadVersionFromMavenCentral(EAP_URL).firstOrNull()
     fun getLatestDevVersion() = downloadVersions(DEV_URL).firstOrNull()
 
     private fun downloadPage(url: String): TaskResult<String> = safe {
         BufferedReader(InputStreamReader(URL(url).openStream())).lines().collect(Collectors.joining("\n"))
+    }
+
+    @Suppress("SameParameterValue")
+    private fun downloadVersionFromMavenCentral(url: String) = compute {
+        val (text) = downloadPage(url)
+        val (versionString) = parseLatestVersionFromJson(text)
+        if (versionString.isNotEmpty())
+            listOf(Version.fromString(versionString))
+        else
+            emptyList()
+    }.asNullable.orEmpty()
+
+    private fun parseLatestVersionFromJson(text: String) = safe {
+        val json = parseString(text) as JsonObject
+        json.get("response").asJsonObject.get("docs").asJsonArray.get(0).asJsonObject.get("latestVersion").asString
     }
 
     @Suppress("SameParameterValue")
@@ -87,7 +103,7 @@ object EapVersionDownloader {
     }.asNullable.orEmpty()
 
     @NonNls
-    private val EAP_URL = "https://dl.bintray.com/kotlin/kotlin-eap/org/jetbrains/kotlin/jvm/org.jetbrains.kotlin.jvm.gradle.plugin/"
+    private val EAP_URL = "https://search.maven.org/solrsearch/select?q=g:org.jetbrains.kotlin%20AND%20a:kotlin-gradle-plugin"
 
     @NonNls
     private val DEV_URL = "https://dl.bintray.com/kotlin/kotlin-dev/org/jetbrains/kotlin/jvm/org.jetbrains.kotlin.jvm.gradle.plugin/"

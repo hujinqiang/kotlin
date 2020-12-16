@@ -6,7 +6,9 @@
 package org.jetbrains.kotlin.gradle.targets.js.npm
 
 import org.gradle.api.Project
-import org.gradle.api.artifacts.ResolvedDependency
+import org.jetbrains.kotlin.gradle.targets.js.JS
+import org.jetbrains.kotlin.gradle.targets.js.JS_MAP
+import org.jetbrains.kotlin.gradle.targets.js.META_JS
 import org.jetbrains.kotlin.gradle.targets.js.ir.KLIB_TYPE
 import java.io.File
 
@@ -15,12 +17,13 @@ import java.io.File
  */
 internal class GradleNodeModuleBuilder(
     val project: Project,
-    val dependency: ResolvedDependency,
+    val moduleName: String,
+    val moduleVersion: String,
     val srcFiles: Collection<File>,
     val cache: GradleNodeModulesCache
 ) {
-    var srcPackageJsonFile: File? = null
-    val files = mutableListOf<File>()
+    private var srcPackageJsonFile: File? = null
+    private val files = mutableListOf<File>()
 
     fun visitArtifacts() {
         srcFiles.forEach { srcFile ->
@@ -42,29 +45,32 @@ internal class GradleNodeModuleBuilder(
         val packageJson = fromSrcPackageJson(srcPackageJsonFile)?.apply {
             // Gson set nulls reflectively no matter on default values and non-null types
             @Suppress("USELESS_ELVIS")
-            version = version ?: dependency.moduleVersion
-        } ?: PackageJson(dependency.moduleName, dependency.moduleVersion)
+            version = version ?: moduleVersion
+        } ?: PackageJson(moduleName, moduleVersion)
 
-        val jsFiles = files.filter { it.name.endsWith(".js") }
-        if (jsFiles.size == 1) {
-            val jsFile = jsFiles.single()
-            packageJson.name = jsFile.nameWithoutExtension
-            packageJson.main = jsFile.name
+        val metaFiles = files.filter { it.name.endsWith(".$META_JS") }
+        if (metaFiles.size == 1) {
+            val metaFile = metaFiles.single()
+            val name = metaFile.name.removeSuffix(".$META_JS")
+            packageJson.name = name
+            packageJson.main = "${name}.js"
         }
 
         // yarn requires semver
         packageJson.version = fixSemver(packageJson.version)
 
+        val actualFiles = files.filterNot { it.name.endsWith(".$META_JS") }
+
         return makeNodeModule(cache.dir, packageJson) { nodeModule ->
             project.copy { copy ->
-                copy.from(files)
+                copy.from(actualFiles)
                 copy.into(nodeModule)
             }
         }
     }
 }
 
-private val File.isCompatibleArchive
+internal val File.isCompatibleArchive
     get() = isFile
             && (extension == "jar"
             || extension == "zip"
@@ -73,6 +79,6 @@ private val File.isCompatibleArchive
 private fun isKotlinJsRuntimeFile(file: File): Boolean {
     if (!file.isFile) return false
     val name = file.name
-    return (name.endsWith(".js") && !name.endsWith(".meta.js"))
-            || name.endsWith(".js.map")
+    return name.endsWith(".$JS")
+            || name.endsWith(".$JS_MAP")
 }

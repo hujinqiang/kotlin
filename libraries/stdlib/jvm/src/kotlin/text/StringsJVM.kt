@@ -61,10 +61,14 @@ public actual fun String?.equals(other: String?, ignoreCase: Boolean = false): B
  */
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
 public actual fun String.replace(oldChar: Char, newChar: Char, ignoreCase: Boolean = false): String {
-    if (!ignoreCase)
-        return (this as java.lang.String).replace(oldChar, newChar)
-    else
-        return splitToSequence(oldChar, ignoreCase = ignoreCase).joinToString(separator = newChar.toString())
+    // prefer case-insensitive platform implementation
+    if (!ignoreCase) return (this as java.lang.String).replace(oldChar, newChar)
+
+    return buildString(length) {
+        this@replace.forEach { c ->
+            append(if (c.equals(oldChar, ignoreCase)) newChar else c)
+        }
+    }
 }
 
 /**
@@ -72,9 +76,28 @@ public actual fun String.replace(oldChar: Char, newChar: Char, ignoreCase: Boole
  * with the specified [newValue] string.
  */
 @Suppress("ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS")
-public actual fun String.replace(oldValue: String, newValue: String, ignoreCase: Boolean = false): String =
-    splitToSequence(oldValue, ignoreCase = ignoreCase).joinToString(separator = newValue)
+public actual fun String.replace(oldValue: String, newValue: String, ignoreCase: Boolean = false): String {
+    run {
+        var occurrenceIndex: Int = indexOf(oldValue, 0, ignoreCase)
+        // FAST PATH: no match
+        if (occurrenceIndex < 0) return this
 
+        val oldValueLength = oldValue.length
+        val searchStep = oldValueLength.coerceAtLeast(1)
+        val newLengthHint = length - oldValueLength + newValue.length
+        if (newLengthHint < 0) throw OutOfMemoryError()
+        val stringBuilder = StringBuilder(newLengthHint)
+
+        var i = 0
+        do {
+            stringBuilder.append(this, i, occurrenceIndex).append(newValue)
+            i = occurrenceIndex + oldValueLength
+            if (occurrenceIndex >= length) break
+            occurrenceIndex = indexOf(oldValue, occurrenceIndex + searchStep, ignoreCase)
+        } while (occurrenceIndex > 0)
+        return stringBuilder.append(this, i, length).toString()
+    }
+}
 
 /**
  * Returns a new string with the first occurrence of [oldChar] replaced with [newChar].
@@ -286,15 +309,38 @@ public inline fun String.Companion.format(format: String, vararg args: Any?): St
 
 /**
  * Uses this string as a format string and returns a string obtained by substituting the specified arguments,
+ * using the specified locale.
+ */
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
+@kotlin.internal.InlineOnly
+public inline fun String.format(locale: Locale, vararg args: Any?): String = java.lang.String.format(locale, this, *args)
+
+/**
+ * Uses this string as a format string and returns a string obtained by substituting the specified arguments,
  * using the specified locale. If [locale] is `null` then no localization is applied.
  */
+@SinceKotlin("1.4")
+@JvmName("formatNullable")
 @kotlin.internal.InlineOnly
 public inline fun String.format(locale: Locale?, vararg args: Any?): String = java.lang.String.format(locale, this, *args)
 
 /**
  * Uses the provided [format] as a format string and returns a string obtained by substituting the specified arguments,
+ * using the specified locale.
+ */
+@Deprecated("Use Kotlin compiler 1.4 to avoid deprecation warning.")
+@DeprecatedSinceKotlin(hiddenSince = "1.4")
+@kotlin.internal.InlineOnly
+public inline fun String.Companion.format(locale: Locale, format: String, vararg args: Any?): String =
+    java.lang.String.format(locale, format, *args)
+
+/**
+ * Uses the provided [format] as a format string and returns a string obtained by substituting the specified arguments,
  * using the specified locale. If [locale] is `null` then no localization is applied.
  */
+@SinceKotlin("1.4")
+@JvmName("formatNullable")
 @kotlin.internal.InlineOnly
 public inline fun String.Companion.format(locale: Locale?, format: String, vararg args: Any?): String =
     java.lang.String.format(locale, format, *args)

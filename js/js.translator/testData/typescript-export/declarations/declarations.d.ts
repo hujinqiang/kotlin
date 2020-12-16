@@ -42,5 +42,18 @@ declare namespace JS_TESTS {
             _varCustom: number;
             _varCustomWithField: number;
         }
+        const O0: {
+        };
+        const O: {
+            readonly x: number;
+            foo(): number;
+        };
+        function takesO(o: typeof foo.O): number;
+        class KT_37829 {
+            constructor();
+            readonly Companion: {
+                readonly x: number;
+            };
+        }
     }
 }

@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.library.IrLibrary
 import org.jetbrains.kotlin.library.SerializedIrFile
 import org.jetbrains.kotlin.library.impl.*
 
+class ICData(val icData: List<SerializedIrFile>, val containsErrorCode: Boolean)
 
 class ICKotlinLibrary(private val icData: List<SerializedIrFile>) : IrLibrary {
     override val dataFlowGraph: ByteArray? = null
@@ -103,10 +104,6 @@ class CurrentModuleWithICDeserializer(
         icDeserializer.deserializeReachableDeclarations()
     }
 
-    override fun postProcess(postProcessor: (IrModuleFragment) -> Unit) {
-        icDeserializer.postProcess(postProcessor)
-    }
-
     private fun DeclarationDescriptor.isDirtyDescriptor(): Boolean {
         if (this is PropertyAccessorDescriptor) return correspondingProperty.isDirtyDescriptor()
         // Since descriptors for FO methods of `kotlin.Any` (toString, equals, hashCode) are Deserialized even in
@@ -122,7 +119,7 @@ class CurrentModuleWithICDeserializer(
         symbolTable.forEachPublicSymbol {
             if (it.descriptor.isDirtyDescriptor()) { // public && non-deserialized should be dirty symbol
                 if (it !in knownBuiltIns) {
-                    dirtyDeclarations[it.signature] = it
+                    dirtyDeclarations[it.signature!!] = it
                 }
             }
         }

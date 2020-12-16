@@ -23,29 +23,48 @@ import org.jetbrains.kotlin.descriptors.SourceElement
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.util.transformInPlace
+import org.jetbrains.kotlin.ir.util.transformIfNeeded
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
-interface IrClass :
-    IrSymbolDeclaration<IrClassSymbol>, IrDeclarationWithName, IrDeclarationWithVisibility,
+abstract class IrClass :
+    IrDeclarationBase(), IrSymbolDeclaration<IrClassSymbol>, IrDeclarationWithName, IrDeclarationWithVisibility,
     IrDeclarationContainer, IrTypeParametersContainer, IrAttributeContainer, IrMetadataSourceOwner {
 
     @ObsoleteDescriptorBasedAPI
-    override val descriptor: ClassDescriptor
+    abstract override val descriptor: ClassDescriptor
 
-    val kind: ClassKind
-    var modality: Modality
-    val isCompanion: Boolean
-    val isInner: Boolean
-    val isData: Boolean
-    val isExternal: Boolean
-    val isInline: Boolean
-    val isExpect: Boolean
-    val isFun: Boolean
+    abstract val kind: ClassKind
+    abstract var modality: Modality
+    abstract val isCompanion: Boolean
+    abstract val isInner: Boolean
+    abstract val isData: Boolean
+    abstract val isExternal: Boolean
+    abstract val isInline: Boolean
+    abstract val isExpect: Boolean
+    abstract val isFun: Boolean
 
-    val source: SourceElement
+    abstract val source: SourceElement
 
-    var superTypes: List<IrType>
+    abstract var superTypes: List<IrType>
 
-    var thisReceiver: IrValueParameter?
+    abstract var thisReceiver: IrValueParameter?
+
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitClass(this, data)
+
+    override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
+        thisReceiver?.accept(visitor, data)
+        typeParameters.forEach { it.accept(visitor, data) }
+        declarations.forEach { it.accept(visitor, data) }
+    }
+
+    override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
+        thisReceiver = thisReceiver?.transform(transformer, data)
+        typeParameters = typeParameters.transformIfNeeded(transformer, data)
+        declarations.transformInPlace(transformer, data)
+    }
 }
 
 fun IrClass.addMember(member: IrDeclaration) {

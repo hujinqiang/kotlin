@@ -190,9 +190,9 @@ open class KtLightClassForFacade constructor(
 
     override fun getNavigationElement() = firstFileInFacade
 
-    override fun isEquivalentTo(another: PsiElement?): Boolean {
-        return another is KtLightClassForFacade && Comparing.equal(another.qualifiedName, qualifiedName)
-    }
+    override fun isEquivalentTo(another: PsiElement?): Boolean =
+        equals(another) ||
+                (another is KtLightClassForFacade && another.facadeClassFqName == facadeClassFqName)
 
     override fun getElementIcon(flags: Int): Icon? = throw UnsupportedOperationException("This should be done by JetIconProvider")
 
@@ -263,21 +263,17 @@ open class KtLightClassForFacade constructor(
 
             if (sources.isEmpty()) return null
 
-            val ultraLightEnabled =
-                !KtUltraLightSupport.forceUsingOldLightClasses && Registry.`is`("kotlin.use.ultra.light.classes", true)
-
             val stubProvider = LightClassDataProviderForFileFacade.ByProjectSource(project, fqName, searchScope)
             val stubValue = CachedValuesManager.getManager(project)
                 .createCachedValue(stubProvider, false)
 
             val manager = PsiManager.getInstance(project)
 
-            val ultraLightClass = if (ultraLightEnabled)
-                LightClassGenerationSupport.getInstance(project)
-                    .createUltraLightClassForFacade(manager, fqName, stubValue, sources)
-            else null
-
-            return ultraLightClass ?: KtLightClassForFacade(manager, fqName, stubValue, sources)
+            return LightClassGenerationSupport.getInstance(project).run {
+                if (useUltraLightClasses) createUltraLightClassForFacade(manager, fqName, stubValue, sources)
+                    ?: error { "Unable to create UL class for facade" }
+                else KtLightClassForFacade(manager, fqName, stubValue, sources)
+            }
         }
 
         fun createForFacade(

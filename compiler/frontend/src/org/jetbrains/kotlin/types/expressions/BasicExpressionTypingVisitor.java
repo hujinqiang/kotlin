@@ -360,7 +360,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             return;
         }
 
-        if (!CastDiagnosticsUtil.isCastPossible(actualType, targetType, components.platformToKotlinClassMap)) {
+        if (!CastDiagnosticsUtil.isCastPossible(actualType, targetType, components.platformToKotlinClassMapper)) {
             context.trace.report(CAST_NEVER_SUCCEEDS.on(expression.getOperationReference()));
             return;
         }
@@ -1110,12 +1110,12 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             if (KotlinBuiltIns.isPrimitiveType(leftType)) {
                 context.trace.report(DEPRECATED_IDENTITY_EQUALS.on(expression, leftType, rightType));
             }
-            else if (InlineClassesUtilsKt.isInlineClassType(leftType)) {
-                context.trace.report(FORBIDDEN_IDENTITY_EQUALS.on(expression, leftType, rightType));
-            }
         }
         else if (isIdentityComparedWithImplicitBoxing(leftType, rightType) || isIdentityComparedWithImplicitBoxing(rightType, leftType)) {
             context.trace.report(IMPLICIT_BOXING_IN_IDENTITY_EQUALS.on(expression, leftType, rightType));
+        }
+        if (InlineClassesUtilsKt.isInlineClassType(leftType) || InlineClassesUtilsKt.isInlineClassType(rightType)) {
+            context.trace.report(FORBIDDEN_IDENTITY_EQUALS.on(expression, leftType, rightType));
         }
     }
 

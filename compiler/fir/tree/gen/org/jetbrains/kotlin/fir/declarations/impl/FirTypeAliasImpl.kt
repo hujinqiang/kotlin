@@ -29,6 +29,7 @@ internal class FirTypeAliasImpl(
     override val session: FirSession,
     override var resolvePhase: FirResolvePhase,
     override val origin: FirDeclarationOrigin,
+    override val attributes: FirDeclarationAttributes,
     override var status: FirDeclarationStatus,
     override val typeParameters: MutableList<FirTypeParameter>,
     override val name: Name,
@@ -36,8 +37,6 @@ internal class FirTypeAliasImpl(
     override var expandedTypeRef: FirTypeRef,
     override val annotations: MutableList<FirAnnotationCall>,
 ) : FirTypeAlias() {
-    override val attributes: FirDeclarationAttributes = FirDeclarationAttributes()
-
     init {
         symbol.bind(this)
     }
@@ -51,7 +50,7 @@ internal class FirTypeAliasImpl(
 
     override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirTypeAliasImpl {
         transformStatus(transformer, data)
-        typeParameters.transformInplace(transformer, data)
+        transformTypeParameters(transformer, data)
         expandedTypeRef = expandedTypeRef.transformSingle(transformer, data)
         transformAnnotations(transformer, data)
         return this
@@ -59,6 +58,11 @@ internal class FirTypeAliasImpl(
 
     override fun <D> transformStatus(transformer: FirTransformer<D>, data: D): FirTypeAliasImpl {
         status = status.transformSingle(transformer, data)
+        return this
+    }
+
+    override fun <D> transformTypeParameters(transformer: FirTransformer<D>, data: D): FirTypeAliasImpl {
+        typeParameters.transformInplace(transformer, data)
         return this
     }
 

@@ -8,39 +8,33 @@ package org.jetbrains.kotlin.fir.backend.generators
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
 import org.jetbrains.kotlin.fir.backend.FirMetadataSource
-import org.jetbrains.kotlin.descriptors.CallableDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.fir.backend.*
 import org.jetbrains.kotlin.fir.backend.declareThisReceiverParameter
-import org.jetbrains.kotlin.fir.declarations.FirClass
+import org.jetbrains.kotlin.fir.backend.toIrType
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.buildSimpleFunction
 import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
 import org.jetbrains.kotlin.fir.declarations.impl.FirDeclarationStatusImpl
+import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.CallableId
+import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
+import org.jetbrains.kotlin.fir.types.ConeStarProjection
+import org.jetbrains.kotlin.fir.types.constructType
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitBooleanTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitIntTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitNullableAnyTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitStringTypeRef
-import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.IrGeneratorContextBase
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
-import org.jetbrains.kotlin.ir.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.ir.descriptors.WrappedValueParameterDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.DataClassMembersGenerator
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 
 /**
@@ -54,21 +48,25 @@ import org.jetbrains.kotlin.name.Name
 @OptIn(ObsoleteDescriptorBasedAPI::class)
 class DataClassMembersGenerator(val components: Fir2IrComponents) {
 
-    fun generateInlineClassMembers(klass: FirClass<*>, irClass: IrClass): List<Name> =
-        MyDataClassMethodsGenerator(irClass, klass.symbol.classId, IrDeclarationOrigin.GENERATED_INLINE_CLASS_MEMBER).generate(klass)
+    fun generateInlineClassMembers(klass: FirClass<*>, irClass: IrClass): List<FirDeclaration> =
+        MyDataClassMethodsGenerator(irClass, klass.symbol.toLookupTag(), IrDeclarationOrigin.GENERATED_INLINE_CLASS_MEMBER).generate(klass)
 
-    fun generateDataClassMembers(klass: FirClass<*>, irClass: IrClass): List<Name> =
-        MyDataClassMethodsGenerator(irClass, klass.symbol.classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER).generate(klass)
+    fun generateDataClassMembers(klass: FirClass<*>, irClass: IrClass): List<FirDeclaration> =
+        MyDataClassMethodsGenerator(irClass, klass.symbol.toLookupTag(), IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER).generate(klass)
 
-    fun generateDataClassComponentBody(irFunction: IrFunction, classId: ClassId) =
-        MyDataClassMethodsGenerator(irFunction.parentAsClass, classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
+    fun generateDataClassComponentBody(irFunction: IrFunction, lookupTag: ConeClassLikeLookupTag) =
+        MyDataClassMethodsGenerator(irFunction.parentAsClass, lookupTag, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
             .generateComponentBody(irFunction)
 
-    fun generateDataClassCopyBody(irFunction: IrFunction, classId: ClassId) =
-        MyDataClassMethodsGenerator(irFunction.parentAsClass, classId, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
+    fun generateDataClassCopyBody(irFunction: IrFunction, lookupTag: ConeClassLikeLookupTag) =
+        MyDataClassMethodsGenerator(irFunction.parentAsClass, lookupTag, IrDeclarationOrigin.GENERATED_DATA_CLASS_MEMBER)
             .generateCopyBody(irFunction)
 
-    private inner class MyDataClassMethodsGenerator(val irClass: IrClass, val classId: ClassId, val origin: IrDeclarationOrigin) {
+    private inner class MyDataClassMethodsGenerator(
+        val irClass: IrClass,
+        val lookupTag: ConeClassLikeLookupTag,
+        val origin: IrDeclarationOrigin
+    ) {
         private val irDataClassMembersGenerator = object : DataClassMembersGenerator(
             IrGeneratorContextBase(components.irBuiltIns),
             components.symbolTable,
@@ -83,11 +81,11 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
                 // TODO
             }
 
-            override fun getBackingField(parameter: ValueParameterDescriptor?, irValueParameter: IrValueParameter?): IrField? =
+            override fun getProperty(parameter: ValueParameterDescriptor?, irValueParameter: IrValueParameter?): IrProperty? =
                 irValueParameter?.let {
                     irClass.properties.single { irProperty ->
                         irProperty.name == irValueParameter.name && irProperty.backingField?.type == irValueParameter.type
-                    }.backingField
+                    }
                 }
 
             override fun transform(typeParameterDescriptor: TypeParameterDescriptor): IrType {
@@ -130,7 +128,7 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
                     (this.name == hashCodeName && matchesHashCodeSignature) ||
                     (this.name == toStringName && matchesToStringSignature)
 
-        fun generate(klass: FirClass<*>): List<Name> {
+        fun generate(klass: FirClass<*>): List<FirDeclaration> {
             val propertyParametersCount = irClass.primaryConstructor?.explicitParameters?.size ?: 0
             val properties = irClass.declarations
                 .filterIsInstance<IrProperty>()
@@ -140,7 +138,7 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
                 return emptyList()
             }
 
-            val result = mutableListOf<Name>()
+            val result = mutableListOf<FirDeclaration>()
 
             val contributedFunctionsInThisType = klass.declarations.mapNotNull {
                 if (it is FirSimpleFunction && it.matchesDataClassSyntheticMemberSignatures) {
@@ -148,34 +146,45 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
                 } else
                     null
             }
-            val nonOverridableContributedFunctionsInSupertypes =
-                klass.collectContributedFunctionsFromSupertypes(components.session) { declaration, map ->
-                    if (declaration is FirSimpleFunction &&
-                        declaration.body != null &&
-                        !Visibilities.isPrivate(declaration.visibility) &&
-                        declaration.modality == Modality.FINAL &&
-                        declaration.matchesDataClassSyntheticMemberSignatures
-                    ) {
-                        map.putIfAbsent(declaration.name, declaration)
+            val contributedFunctionsInSupertypes =
+                @OptIn(ExperimentalStdlibApi::class)
+                buildMap<Name, FirSimpleFunction> {
+                    for (name in listOf(equalsName, hashCodeName, toStringName)) {
+                        klass.unsubstitutedScope(
+                            components.session,
+                            components.scopeSession,
+                            withForcedTypeCalculator = true
+                        ).processFunctionsByName(name) {
+                            val declaration = it.fir
+                            if (declaration.matchesDataClassSyntheticMemberSignatures) {
+                                putIfAbsent(declaration.name, declaration)
+                            }
+                        }
                     }
                 }
 
+            fun isOverridableDeclaration(name: Name): Boolean {
+                val declaration = contributedFunctionsInSupertypes[name] ?: return false
+                return declaration.modality != Modality.FINAL
+            }
+
             if (!contributedFunctionsInThisType.contains(equalsName) &&
-                !nonOverridableContributedFunctionsInSupertypes.containsKey(equalsName)
+                isOverridableDeclaration(equalsName)
             ) {
-                result.add(equalsName)
+                result.add(contributedFunctionsInSupertypes.getValue(equalsName))
                 val equalsFunction = createSyntheticIrFunction(
                     equalsName,
                     components.irBuiltIns.booleanType,
-                ) { createSyntheticIrParameter(it, Name.identifier("other"), components.irBuiltIns.anyNType) }
+                    otherParameterNeeded = true
+                )
                 irDataClassMembersGenerator.generateEqualsMethod(equalsFunction, properties)
                 irClass.declarations.add(equalsFunction)
             }
 
             if (!contributedFunctionsInThisType.contains(hashCodeName) &&
-                !nonOverridableContributedFunctionsInSupertypes.containsKey(hashCodeName)
+                isOverridableDeclaration(hashCodeName)
             ) {
-                result.add(hashCodeName)
+                result.add(contributedFunctionsInSupertypes.getValue(hashCodeName))
                 val hashCodeFunction = createSyntheticIrFunction(
                     hashCodeName,
                     components.irBuiltIns.intType,
@@ -185,9 +194,9 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
             }
 
             if (!contributedFunctionsInThisType.contains(toStringName) &&
-                !nonOverridableContributedFunctionsInSupertypes.containsKey(toStringName)
+                isOverridableDeclaration(toStringName)
             ) {
-                result.add(toStringName)
+                result.add(contributedFunctionsInSupertypes.getValue(toStringName))
                 val toStringFunction = createSyntheticIrFunction(
                     toStringName,
                     components.irBuiltIns.stringType,
@@ -202,9 +211,8 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
         fun generateComponentBody(irFunction: IrFunction) {
             val index = getComponentIndex(irFunction)!!
             val valueParameter = irClass.primaryConstructor!!.valueParameters[index - 1]
-            val backingField = irDataClassMembersGenerator.getBackingField(null, valueParameter)!!
-            irDataClassMembersGenerator
-                .generateComponentFunction(irFunction, backingField, valueParameter.startOffset, valueParameter.endOffset)
+            val irProperty = irDataClassMembersGenerator.getProperty(null, valueParameter)!!
+            irDataClassMembersGenerator.generateComponentFunction(irFunction, irProperty)
         }
 
         fun generateCopyBody(irFunction: IrFunction) =
@@ -213,66 +221,58 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
         private fun createSyntheticIrFunction(
             name: Name,
             returnType: IrType,
-            valueParameterBuilder: (IrFunction) -> IrValueParameter? = { null }
+            otherParameterNeeded: Boolean = false
         ): IrFunction {
-            val functionDescriptor = WrappedSimpleFunctionDescriptor()
             val thisReceiverDescriptor = WrappedValueParameterDescriptor()
-            return components.symbolTable.declareSimpleFunction(functionDescriptor) { symbol ->
-                IrFunctionImpl(
-                    UNDEFINED_OFFSET,
-                    UNDEFINED_OFFSET,
-                    origin,
-                    symbol,
-                    name,
-                    Visibilities.PUBLIC,
-                    Modality.OPEN,
-                    returnType,
-                    isInline = false,
-                    isExternal = false,
-                    isTailrec = false,
-                    isSuspend = false,
-                    isExpect = false,
-                    isFakeOverride = false,
-                    isOperator = false
-                ).apply {
-                    val irValueParameter = valueParameterBuilder(this)?.let {
-                        this.valueParameters = listOf(it)
-                        it
-                    }
-                    metadata = FirMetadataSource.Function(
-                        buildSimpleFunction {
+            val firFunction = buildSimpleFunction {
+                origin = FirDeclarationOrigin.Synthetic
+                this.name = name
+                this.symbol = FirNamedFunctionSymbol(CallableId(lookupTag.classId, name))
+                this.status = FirDeclarationStatusImpl(Visibilities.Public, Modality.FINAL)
+                this.session = components.session
+                this.returnTypeRef = when (returnType) {
+                    components.irBuiltIns.booleanType -> FirImplicitBooleanTypeRef(null)
+                    components.irBuiltIns.intType -> FirImplicitIntTypeRef(null)
+                    components.irBuiltIns.stringType -> FirImplicitStringTypeRef(null)
+                    else -> error("Unexpected synthetic data class function return type: $returnType")
+                }
+                if (otherParameterNeeded) {
+                    this.valueParameters.add(
+                        buildValueParameter {
+                            this.name = Name.identifier("other")
                             origin = FirDeclarationOrigin.Synthetic
-                            this.name = name
-                            this.symbol = FirNamedFunctionSymbol(CallableId(classId.packageFqName, classId.relativeClassName, name))
-                            this.status = FirDeclarationStatusImpl(Visibilities.PUBLIC, Modality.FINAL)
                             this.session = components.session
-                            this.returnTypeRef = when (returnType) {
-                                components.irBuiltIns.booleanType -> FirImplicitBooleanTypeRef(null)
-                                components.irBuiltIns.intType -> FirImplicitIntTypeRef(null)
-                                components.irBuiltIns.stringType -> FirImplicitStringTypeRef(null)
-                                else -> error("Unexpected synthetic data class function return type: $returnType")
-                            }
-                            if (irValueParameter != null) {
-                                this.valueParameters.add(
-                                    buildValueParameter {
-                                        this.name = irValueParameter.name
-                                        origin = FirDeclarationOrigin.Synthetic
-                                        this.session = components.session
-                                        this.returnTypeRef = FirImplicitNullableAnyTypeRef(null)
-                                        this.symbol = FirVariableSymbol(irValueParameter.name)
-                                        isCrossinline = false
-                                        isNoinline = false
-                                        isVararg = false
-                                    }
-                                )
-                            }
+                            this.returnTypeRef = FirImplicitNullableAnyTypeRef(null)
+                            this.symbol = FirVariableSymbol(this.name)
+                            isCrossinline = false
+                            isNoinline = false
+                            isVararg = false
                         }
                     )
-
+                }
+                dispatchReceiverType = lookupTag.constructType(
+                    (1..irClass.typeParameters.size).map { ConeStarProjection }.toTypedArray(), isNullable = false
+                )
+            }
+            val signature = if (lookupTag.classId.isLocal) null else components.signatureComposer.composeSignature(firFunction)
+            return components.declarationStorage.declareIrSimpleFunction(signature, null) { symbol ->
+                components.irFactory.createFunction(
+                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, symbol, name, DescriptorVisibilities.PUBLIC, Modality.OPEN, returnType,
+                    isInline = false, isExternal = false, isTailrec = false, isSuspend = false, isOperator = false,
+                    isInfix = false, isExpect = false, isFakeOverride = false,
+                ).apply {
+                    if (otherParameterNeeded) {
+                        val irValueParameter = createSyntheticIrParameter(
+                            this, firFunction.valueParameters.first().name, components.irBuiltIns.anyNType
+                        )
+                        this.valueParameters = listOf(irValueParameter)
+                    }
+                    metadata = FirMetadataSource.Function(
+                        firFunction
+                    )
                 }
             }.apply {
                 parent = irClass
-                functionDescriptor.bind(this)
                 dispatchReceiverParameter = generateDispatchReceiverParameter(this, thisReceiverDescriptor)
                 components.irBuiltIns.anyClass.descriptor.unsubstitutedMemberScope
                     .getContributedFunctions(this.name, NoLookupLocation.FROM_BACKEND)
@@ -286,23 +286,11 @@ class DataClassMembersGenerator(val components: Fir2IrComponents) {
         private fun createSyntheticIrParameter(irFunction: IrFunction, name: Name, type: IrType, index: Int = 0): IrValueParameter {
             val descriptor = WrappedValueParameterDescriptor()
             return components.symbolTable.declareValueParameter(
-                UNDEFINED_OFFSET,
-                UNDEFINED_OFFSET,
-                origin,
-                descriptor,
-                type
+                UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, descriptor, type
             ) { symbol ->
-                IrValueParameterImpl(
-                    UNDEFINED_OFFSET,
-                    UNDEFINED_OFFSET,
-                    origin,
-                    symbol,
-                    name,
-                    index,
-                    type,
-                    null,
-                    isCrossinline = false,
-                    isNoinline = false
+                components.irFactory.createValueParameter(
+                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, symbol, name, index, type, null,
+                    isCrossinline = false, isNoinline = false, isHidden = false, isAssignable = false
                 )
             }.apply {
                 parent = irFunction

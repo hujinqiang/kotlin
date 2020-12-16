@@ -7,7 +7,9 @@ package org.jetbrains.kotlinx.serialization.compiler.diagnostic
 
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.Annotated
 import org.jetbrains.kotlin.diagnostics.DiagnosticFactory0
 import org.jetbrains.kotlin.js.resolve.diagnostics.findPsi
 import org.jetbrains.kotlin.psi.*
@@ -17,7 +19,9 @@ import org.jetbrains.kotlin.resolve.checkers.DeclarationCheckerContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperInterfaces
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.hasBackingField
+import org.jetbrains.kotlin.resolve.isInlineClass
 import org.jetbrains.kotlin.resolve.isInlineClassType
 import org.jetbrains.kotlin.resolve.jvm.annotations.TRANSIENT_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyAnnotationDescriptor
@@ -40,11 +44,54 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
 
         if (!canBeSerializedInternally(descriptor, declaration, context.trace)) return
         if (declaration !is KtPureClassOrObject) return
+        if (!isIde) {
+            // In IDE, BindingTrace is recreated each time code is modified, effectively resulting in JAR manifest read every time user types
+            // something, which may be very slow. So we perform this check only during CLI/Gradle compilation.
+            VersionReader.getVersionsForCurrentModuleFromTrace(descriptor.module, context.trace)?.let {
+                checkMinKotlin(it, descriptor, context.trace)
+                checkMinRuntime(it, descriptor, context.trace)
+            }
+        }
         val props = buildSerializableProperties(descriptor, context.trace) ?: return
         checkCorrectTransientAnnotationIsUsed(descriptor, props.serializableProperties, context.trace)
         checkTransients(declaration, context.trace)
         analyzePropertiesSerializers(context.trace, descriptor, props.serializableProperties)
     }
+
+    private fun checkMinRuntime(versions: VersionReader.RuntimeVersions, descriptor: ClassDescriptor, trace: BindingTrace) {
+        // if RuntimeVersions are present, but implementation version is not,
+        // it means that we are reading from jar which does not have this manifest parameter - a pre-1.0 serialization runtime.
+        // For non-JAR distributions (klib, js) this method is not invoked, since getVersionsForCurrentModule
+        // unable to read from them
+        if (!versions.implementationVersionMatchSupported()) {
+            descriptor.onSerializableAnnotation {
+                trace.report(
+                    SerializationErrors.PROVIDED_RUNTIME_TOO_LOW.on(
+                        it,
+                        versions.implementationVersion?.toString() ?: "too low",
+                        KotlinCompilerVersion.getVersion() ?: "unknown",
+                        VersionReader.MINIMAL_SUPPORTED_VERSION.toString(),
+                    )
+                )
+            }
+        }
+    }
+
+    private fun checkMinKotlin(versions: VersionReader.RuntimeVersions, descriptor: ClassDescriptor, trace: BindingTrace) {
+        if (versions.currentCompilerMatchRequired()) return
+        descriptor.onSerializableAnnotation {
+            trace.report(
+                SerializationErrors.REQUIRED_KOTLIN_TOO_HIGH.on(
+                    it,
+                    KotlinCompilerVersion.getVersion() ?: "too low",
+                    versions.implementationVersion?.toString() ?: "unknown",
+                    versions.requireKotlinVersion?.toString() ?: "N/A",
+                )
+            )
+        }
+    }
+
+    protected open val isIde: Boolean get() = false
 
     private fun checkCorrectTransientAnnotationIsUsed(
         descriptor: ClassDescriptor,
@@ -76,7 +123,7 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
             return false
         }
 
-        if (descriptor.isInline) {
+        if (descriptor.isInlineClass()) {
             trace.reportOnSerializableAnnotation(descriptor, SerializationErrors.INLINE_CLASSES_NOT_SUPPORTED)
             return false
         }
@@ -127,7 +174,7 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
         val namesSet = mutableSetOf<String>()
         props.serializableProperties.forEach {
             if (!namesSet.add(it.name)) {
-                descriptor.safeReport { a ->
+                descriptor.onSerializableAnnotation { a ->
                     trace.report(SerializationErrors.DUPLICATE_SERIAL_NAME.on(a, it.name))
                 }
             }
@@ -173,6 +220,7 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
             val ktType = (propertyPsi as? KtCallableDeclaration)?.typeReference
             if (serializer != null) {
                 val element = ktType?.typeElement
+                checkCustomSerializerMatch(it.module, it.type, it.descriptor, element, trace, propertyPsi)
                 checkSerializerNullability(it.type, serializer.defaultType, element, trace, propertyPsi)
                 generatorContextForAnalysis.checkTypeArguments(it.module, it.type, element, trace, propertyPsi)
             } else {
@@ -215,11 +263,34 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
         }
         val serializer = findTypeSerializerOrContextUnchecked(module, type)
         if (serializer != null) {
+            checkCustomSerializerMatch(module, type, type, element, trace, fallbackElement)
             checkSerializerNullability(type, serializer.defaultType, element, trace, fallbackElement)
             checkTypeArguments(module, type, element, trace, fallbackElement)
         } else {
             trace.report(SerializationErrors.SERIALIZER_NOT_FOUND.on(element ?: fallbackElement, type))
         }
+    }
+
+    private fun checkCustomSerializerMatch(
+        module: ModuleDescriptor,
+        classType: KotlinType,
+        descriptor: Annotated,
+        element: KtElement?,
+        trace: BindingTrace,
+        fallbackElement: PsiElement
+    ) {
+        val serializerType = descriptor.annotations.serializableWith(module) ?: return
+        val serializerForType = serializerType.supertypes().find { isKSerializer(it) }?.arguments?.first()?.type ?: return
+        // Compare constructors because we do not care about generic arguments and nullability
+        if (classType.constructor != serializerForType.constructor)
+            trace.report(
+                SerializationErrors.SERIALIZER_TYPE_INCOMPATIBLE.on(
+                    element ?: fallbackElement,
+                    classType,
+                    serializerType,
+                    serializerForType
+                )
+            )
     }
 
     private fun checkSerializerNullability(
@@ -232,18 +303,19 @@ open class SerializationPluginDeclarationChecker : DeclarationChecker {
         // @Serializable annotation has proper signature so this error would be caught in type checker
         val castedToKSerial = serializerType.supertypes().find { isKSerializer(it) } ?: return
 
-        if (!classType.isMarkedNullable && castedToKSerial.arguments.first().type.isMarkedNullable)
+        val serializerForType = castedToKSerial.arguments.first().type
+        if (!classType.isMarkedNullable && serializerForType.isMarkedNullable)
             trace.report(
                 SerializationErrors.SERIALIZER_NULLABILITY_INCOMPATIBLE.on(element ?: fallbackElement, serializerType, classType),
             )
     }
 
-    private inline fun ClassDescriptor.safeReport(report: (KtAnnotationEntry) -> Unit) {
+    private inline fun ClassDescriptor.onSerializableAnnotation(report: (KtAnnotationEntry) -> Unit) {
         findSerializableAnnotationDeclaration()?.let(report)
     }
 
     private fun BindingTrace.reportOnSerializableAnnotation(descriptor: ClassDescriptor, error: DiagnosticFactory0<in KtAnnotationEntry>) {
-        descriptor.safeReport { e ->
+        descriptor.onSerializableAnnotation { e ->
             report(error.on(e))
         }
     }

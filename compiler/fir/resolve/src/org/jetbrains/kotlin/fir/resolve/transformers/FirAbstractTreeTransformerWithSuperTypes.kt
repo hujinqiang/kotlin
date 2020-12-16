@@ -5,21 +5,33 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers
 
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
+import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.expressions.FirStatement
+import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
-import org.jetbrains.kotlin.fir.resolve.providers.getNestedClassifierScope
+import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
+import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutorByMap
+import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.FirCompositeScope
 import org.jetbrains.kotlin.fir.scopes.FirScope
+import org.jetbrains.kotlin.fir.scopes.getNestedClassifierScope
 import org.jetbrains.kotlin.fir.scopes.impl.FirMemberTypeParameterScope
 import org.jetbrains.kotlin.fir.scopes.impl.nestedClassifierScope
+import org.jetbrains.kotlin.fir.scopes.impl.wrapNestedClassifierScopeWithSubstitutionForSuperType
+import org.jetbrains.kotlin.fir.types.ConeClassErrorType
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.ConeLookupTagBasedType
 import org.jetbrains.kotlin.fir.visitors.CompositeTransformResult
 
 abstract class FirAbstractTreeTransformerWithSuperTypes(
-    phase: FirResolvePhase
+    phase: FirResolvePhase,
+    protected val scopeSession: ScopeSession
 ) : FirAbstractTreeTransformer<Nothing?>(phase) {
     protected val scopes = mutableListOf<FirScope>()
     protected val towerScope = FirCompositeScope(scopes.asReversed())
@@ -39,12 +51,25 @@ abstract class FirAbstractTreeTransformerWithSuperTypes(
         firClass: FirClass<*>,
         data: Nothing?
     ): CompositeTransformResult<FirStatement> {
+        firClass.replaceResolvePhase(transformerPhase)
         return withScopeCleanup {
+            // Otherwise annotations may try to resolve
+            // themselves as inner classes of the `firClass`
+            // if their names match
+            firClass.transformAnnotations(this, null)
+
             // ? Is it Ok to use original file session here ?
-            val superTypes = lookupSuperTypes(firClass, lookupInterfaces = false, deep = true, useSiteSession = session).asReversed()
+            val superTypes = lookupSuperTypes(
+                firClass,
+                lookupInterfaces = false,
+                deep = true,
+                substituteTypes = true,
+                useSiteSession = session
+            ).asReversed()
             for (superType in superTypes) {
-                session.getNestedClassifierScope(superType.lookupTag)?.let {
-                    scopes.add(it)
+                superType.lookupTag.getNestedClassifierScope(session, scopeSession)?.let { nestedClassifierScope ->
+                    val scope = nestedClassifierScope.wrapNestedClassifierScopeWithSubstitutionForSuperType(superType, session)
+                    scopes.add(scope)
                 }
             }
             if (firClass is FirRegularClass) {
@@ -57,6 +82,8 @@ abstract class FirAbstractTreeTransformerWithSuperTypes(
 
             nestedClassifierScope(firClass)?.let(scopes::add)
 
+            // Note that annotations are still visited here
+            // again, although there's no need in it
             transformElement(firClass, data)
         }
     }
@@ -66,4 +93,13 @@ abstract class FirAbstractTreeTransformerWithSuperTypes(
             scopes.add(FirMemberTypeParameterScope(this))
         }
     }
+}
+
+fun createSubstitutionForSupertype(superType: ConeLookupTagBasedType, session: FirSession): ConeSubstitutor {
+    val klass = superType.lookupTag.toSymbol(session)?.fir as? FirRegularClass ?: return ConeSubstitutor.Empty
+    val arguments = superType.typeArguments.map {
+        it as? ConeKotlinType ?: ConeClassErrorType(ConeSimpleDiagnostic("illegal projection usage", DiagnosticKind.IllegalProjectionUsage))
+    }
+    val mapping = klass.typeParameters.map { it.symbol }.zip(arguments).toMap()
+    return ConeSubstitutorByMap(mapping)
 }

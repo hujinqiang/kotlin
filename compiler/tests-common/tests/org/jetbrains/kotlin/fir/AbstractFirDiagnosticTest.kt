@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir
 
 import com.intellij.psi.PsiElement
 import junit.framework.TestCase
+import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.checkers.diagnostics.factories.DebugInfoDiagnosticFactory1
 import org.jetbrains.kotlin.checkers.utils.TypeOfCall
 import org.jetbrains.kotlin.diagnostics.rendering.Renderers
@@ -40,7 +41,6 @@ import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitorVoid
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.test.KotlinTestUtils
-import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.addIfNotNull
 import java.io.File
@@ -63,24 +63,28 @@ import java.io.File
  */
 abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
     companion object {
-        val DUMP_CFG_DIRECTIVE = "DUMP_CFG"
-        val COMMON_COROUTINES_DIRECTIVE ="COMMON_COROUTINES_TEST"
+        const val DUMP_CFG_DIRECTIVE = "DUMP_CFG"
+
+        private val allowedKindsForDebugInfo = setOf(
+            FirRealSourceElementKind,
+            FirFakeSourceElementKind.DesugaredCompoundAssignment,
+        )
 
         val TestFile.withDumpCfgDirective: Boolean
             get() = DUMP_CFG_DIRECTIVE in directives
-
-        val TestFile.withCommonCoroutinesDirective: Boolean
-            get() = COMMON_COROUTINES_DIRECTIVE in directives
 
         val File.cfgDumpFile: File
             get() = File(absolutePath.replace(".kt", ".dot"))
     }
 
+    protected open val pluginPhasesEnabled: Boolean
+        get() = false
+
     override fun runAnalysis(testDataFile: File, testFiles: List<TestFile>, firFilesPerSession: Map<FirSession, List<FirFile>>) {
         for ((session, firFiles) in firFilesPerSession) {
             doFirResolveTestBench(
                 firFiles,
-                createAllCompilerResolveProcessors(session),
+                createAllCompilerResolveProcessors(session, pluginPhasesEnabled = pluginPhasesEnabled),
                 gc = false
             )
         }
@@ -128,10 +132,7 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
                 actualTextBuilder.append(testFile.expectedText)
             }
         }
-        var actualText = actualTextBuilder.toString()
-        if (testFiles.any { it.withCommonCoroutinesDirective }) {
-            actualText = actualText.replace(coroutinesPackage, "COROUTINES_PACKAGE")
-        }
+        val actualText = actualTextBuilder.toString()
         KotlinTestUtils.assertEqualsToFile(file, actualText)
     }
 
@@ -201,7 +202,17 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
         argument: () -> String,
     ): FirDiagnosticWithParameters1<FirSourceElement, String>? {
         val sourceElement = element.source ?: return null
-        if (diagnosedRangesToDiagnosticNames[sourceElement.startOffset..sourceElement.endOffset]?.contains(this.name) != true) return null
+        val sourceKind = sourceElement.kind
+        if (sourceKind !in allowedKindsForDebugInfo) {
+            if (sourceKind != FirFakeSourceElementKind.ImplicitReturn || sourceElement.elementType != KtNodeTypes.RETURN) {
+                return null
+            }
+        }
+        // Lambda argument is always (?) duplicated by function literal
+        // Block expression is always (?) duplicated by single block expression
+        if (sourceElement.elementType == KtNodeTypes.LAMBDA_ARGUMENT || sourceElement.elementType == KtNodeTypes.BLOCK) return null
+        val name = name ?: return null
+        if (diagnosedRangesToDiagnosticNames[sourceElement.startOffset..sourceElement.endOffset]?.contains(name) != true) return null
 
         val argumentText = argument()
         return when (sourceElement) {
@@ -209,21 +220,13 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
                 sourceElement,
                 argumentText,
                 severity,
-                FirDiagnosticFactory1(
-                    name,
-                    severity,
-                    this
-                )
+                FirDiagnosticFactory1(name, severity)
             )
             is FirLightSourceElement -> FirLightDiagnosticWithParameters1(
                 sourceElement,
                 argumentText,
                 severity,
-                FirDiagnosticFactory1<FirSourceElement, PsiElement, String>(
-                    name,
-                    severity,
-                    this
-                )
+                FirDiagnosticFactory1<FirSourceElement, PsiElement, String>(name, severity)
             )
         }
     }
@@ -276,7 +279,7 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
     }
 
     private fun createCollector(session: FirSession): AbstractDiagnosticCollector {
-        return FirDiagnosticsCollector.create(session, useExtendedCheckersIfNeeded())
+        return FirDiagnosticsCollector.create(session)
     }
 
     private fun checkCfgDump(testDataFile: File, firFiles: List<FirFile>) {
@@ -321,13 +324,13 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
         private val cfgKinds = listOf(EdgeKind.DeadForward, EdgeKind.CfgForward, EdgeKind.DeadBackward, EdgeKind.CfgBackward)
 
         private fun checkEdge(from: CFGNode<*>, to: CFGNode<*>) {
-            KtUsefulTestCase.assertContainsElements(from.followingNodes, to)
-            KtUsefulTestCase.assertContainsElements(to.previousNodes, from)
-            val fromKind = from.outgoingEdges.getValue(to)
-            val toKind = to.incomingEdges.getValue(from)
+            assertContainsElements(from.followingNodes, to)
+            assertContainsElements(to.previousNodes, from)
+            val fromKind = from.outgoingEdges.getValue(to).kind
+            val toKind = to.incomingEdges.getValue(from).kind
             TestCase.assertEquals(fromKind, toKind)
             if (from.isDead && to.isDead) {
-                KtUsefulTestCase.assertContainsElements(cfgKinds, toKind)
+                assertContainsElements(cfgKinds, toKind)
             }
         }
 
@@ -336,10 +339,7 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
             for (node in graph.nodes) {
                 for (previousNode in node.previousNodes) {
                     if (previousNode.owner != graph) continue
-                    if (!node.incomingEdges.getValue(previousNode).isBack) {
-                        if (previousNode !in visited) {
-                            val x = 1
-                        }
+                    if (!node.incomingEdges.getValue(previousNode).kind.isBack) {
                         assertTrue(previousNode in visited)
                     }
                 }
@@ -360,5 +360,4 @@ abstract class AbstractFirDiagnosticsTest : AbstractFirBaseDiagnosticsTest() {
 
     }
 
-    internal open fun useExtendedCheckersIfNeeded() = false
 }

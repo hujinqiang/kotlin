@@ -23,11 +23,11 @@ import java.lang.System;
 @kotlin.Metadata()
 @Anno()
 public final class User {
+    @org.jetbrains.annotations.NotNull()
     private final java.lang.String name = "John";
 
-    @org.jetbrains.annotations.NotNull()
-    public final java.lang.String getName() {
-        return null;
+    public User() {
+        super();
     }
 
     public User(@org.jetbrains.annotations.NotNull()
@@ -35,7 +35,8 @@ public final class User {
         super();
     }
 
-    public User() {
-        super();
+    @org.jetbrains.annotations.NotNull()
+    public final java.lang.String getName() {
+        return null;
     }
 }

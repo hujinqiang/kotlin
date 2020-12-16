@@ -1,10 +1,13 @@
 @kotlin.Metadata
 public interface IValue {
+    // source: 'primaryValsWithDifferentVisibilities.kt'
     public abstract method getValue(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class TestInternal {
+    // source: 'primaryValsWithDifferentVisibilities.kt'
     private final field value: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): TestInternal
@@ -19,8 +22,10 @@ public final class TestInternal {
     public synthetic final method unbox-impl(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class TestOverriding {
+    // source: 'primaryValsWithDifferentVisibilities.kt'
     private final field value: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): TestOverriding
@@ -36,8 +41,10 @@ public final class TestOverriding {
     public synthetic final method unbox-impl(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class TestPrivate {
+    // source: 'primaryValsWithDifferentVisibilities.kt'
     private final field value: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): TestPrivate
@@ -52,8 +59,10 @@ public final class TestPrivate {
     public synthetic final method unbox-impl(): int
 }
 
+@kotlin.jvm.JvmInline
 @kotlin.Metadata
 public final class TestPublic {
+    // source: 'primaryValsWithDifferentVisibilities.kt'
     private final field value: int
     private synthetic method <init>(p0: int): void
     public synthetic final static method box-impl(p0: int): TestPublic

@@ -21,11 +21,9 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.declarations.lazy.*
 import org.jetbrains.kotlin.ir.descriptors.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrErrorExpressionImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrExpressionBodyImpl
 import org.jetbrains.kotlin.ir.linkage.IrProvider
 import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
@@ -34,6 +32,7 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyExternal
+import org.jetbrains.kotlin.resolve.isInlineClass
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DescriptorWithContainerSource
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
@@ -54,12 +53,6 @@ class DeclarationStubGenerator(
         set(value) {
             lazyTable.stubGenerator = if (value) this else null
         }
-
-    private lateinit var irProviders_: List<IrProvider>
-
-    fun setIrProviders(value: List<IrProvider>) {
-        irProviders_ = value
-    }
 
     val typeTranslator =
         TypeTranslator(
@@ -85,7 +78,10 @@ class DeclarationStubGenerator(
             return generateStubBySymbol(symbol, symbol.descriptor)
         }
         val descriptor = if (symbol.descriptor is WrappedDeclarationDescriptor<*>)
-            findDescriptorBySignature(symbol.signature)
+            findDescriptorBySignature(
+                symbol.signature
+                    ?: error("Symbol is not public API. Expected signature for symbol: ${symbol.descriptor}")
+            )
         else
             symbol.descriptor
         if (descriptor == null) return null
@@ -107,7 +103,7 @@ class DeclarationStubGenerator(
         val packageFragment = directMember.containingDeclaration as? PackageFragmentDescriptor ?: return null
         val containerSource = directMember.safeAs<DescriptorWithContainerSource>()?.containerSource ?: return null
         return facadeClassMap.getOrPut(containerSource) {
-            extensions.generateFacadeClass(containerSource)?.also { facade ->
+            extensions.generateFacadeClass(symbolTable.irFactory, containerSource)?.also { facade ->
                 val packageStub = generateOrGetEmptyExternalPackageFragmentStub(packageFragment)
                 facade.parent = packageStub
                 packageStub.declarations.add(facade)
@@ -200,13 +196,11 @@ class DeclarationStubGenerator(
         }
 
         if (createPropertyIfNeeded && descriptor is PropertyGetterDescriptor) {
-            val propertySymbol = symbolTable.referenceProperty(descriptor.correspondingProperty)
-            val property = irProviders_.getDeclaration(propertySymbol) as IrProperty
+            val property = generatePropertyStub(descriptor.correspondingProperty)
             return property.getter!!
         }
         if (createPropertyIfNeeded && descriptor is PropertySetterDescriptor) {
-            val propertySymbol = symbolTable.referenceProperty(descriptor.correspondingProperty)
-            val property = irProviders_.getDeclaration(propertySymbol) as IrProperty
+            val property = generatePropertyStub(descriptor.correspondingProperty)
             return property.setter!!
         }
 
@@ -220,7 +214,8 @@ class DeclarationStubGenerator(
                 it, descriptor,
                 descriptor.name, descriptor.visibility, descriptor.modality,
                 descriptor.isInline, descriptor.isExternal, descriptor.isTailrec, descriptor.isSuspend, descriptor.isExpect,
-                isFakeOverride = (origin == IrDeclarationOrigin.FAKE_OVERRIDE), isOperator = descriptor.isOperator,
+                isFakeOverride = (origin == IrDeclarationOrigin.FAKE_OVERRIDE),
+                isOperator = descriptor.isOperator, isInfix = descriptor.isInfix,
                 stubGenerator = this, typeTranslator = typeTranslator
             )
         }
@@ -249,13 +244,13 @@ class DeclarationStubGenerator(
     private fun KotlinType.toIrType() = typeTranslator.translateType(this)
 
     internal fun generateValueParameterStub(descriptor: ValueParameterDescriptor): IrValueParameter = with(descriptor) {
-        IrValueParameterImpl(
+        symbolTable.irFactory.createValueParameter(
             UNDEFINED_OFFSET, UNDEFINED_OFFSET, computeOrigin(this), IrValueParameterSymbolImpl(this), name, index, type.toIrType(),
-            varargElementType?.toIrType(), isCrossinline, isNoinline
+            varargElementType?.toIrType(), isCrossinline, isNoinline, isHidden = false, isAssignable = false
         ).also { irValueParameter ->
             if (descriptor.declaresDefaultValue()) {
                 irValueParameter.defaultValue =
-                    IrExpressionBodyImpl(
+                    irValueParameter.factory.createExpressionBody(
                         IrErrorExpressionImpl(
                             UNDEFINED_OFFSET, UNDEFINED_OFFSET, descriptor.type.toIrType(),
                             "Stub expression for default value of ${descriptor.name}"
@@ -280,7 +275,7 @@ class DeclarationStubGenerator(
                 isInner = descriptor.isInner,
                 isData = descriptor.isData,
                 isExternal = descriptor.isEffectivelyExternal(),
-                isInline = descriptor.isInline,
+                isInline = descriptor.isInlineClass(),
                 isExpect = descriptor.isExpect,
                 isFun = descriptor.isFun,
                 stubGenerator = this,

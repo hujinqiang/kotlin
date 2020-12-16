@@ -11,10 +11,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.psi.*
 import com.intellij.psi.impl.InheritanceImplUtil
-import com.intellij.psi.impl.PsiSubstitutorImpl
 import com.intellij.psi.impl.java.stubs.PsiJavaFileStub
 import com.intellij.psi.impl.source.PsiImmediateClassType
 import com.intellij.psi.impl.source.tree.TreeUtil
@@ -22,7 +20,10 @@ import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.search.SearchScope
 import com.intellij.psi.stubs.IStubElementType
 import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.util.*
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.IncorrectOperationException
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.analyzer.KotlinModificationTrackerService
@@ -71,8 +72,9 @@ abstract class KtLightClassForSourceDeclaration(
     StubBasedPsiElement<KotlinClassOrObjectStub<out KtClassOrObject>> {
 
     override val myInnersCache: KotlinClassInnerStuffCache = KotlinClassInnerStuffCache(
-        this,
-        classOrObject.getExternalDependencies()
+        myClass = this,
+        externalDependencies = classOrObject.getExternalDependencies(),
+        lazyCreator = LightClassesLazyCreator(project)
     )
 
     private val lightIdentifier = KtLightIdentifier(this, classOrObject)
@@ -151,14 +153,13 @@ abstract class KtLightClassForSourceDeclaration(
 
     override fun getNavigationElement(): PsiElement = classOrObject
 
-    override fun isEquivalentTo(another: PsiElement?): Boolean {
-        return kotlinOrigin.isEquivalentTo(another) ||
-                another is KtLightClassForSourceDeclaration && Comparing.equal(another.qualifiedName, qualifiedName)
-    }
+    override fun isEquivalentTo(another: PsiElement?): Boolean =
+        kotlinOrigin.isEquivalentTo(another) ||
+                equals(another) ||
+                (qualifiedName != null && another is KtLightClassForSourceDeclaration && qualifiedName == another.qualifiedName)
 
-    override fun getElementIcon(flags: Int): Icon? {
+    override fun getElementIcon(flags: Int): Icon? =
         throw UnsupportedOperationException("This should be done by JetIconProvider")
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -263,11 +264,11 @@ abstract class KtLightClassForSourceDeclaration(
     override fun isValid(): Boolean = classOrObject.isValid
 
     override fun isInheritor(baseClass: PsiClass, checkDeep: Boolean): Boolean {
+        if (manager.areElementsEquivalent(baseClass, this)) return false
         LightClassInheritanceHelper.getService(project).isInheritor(this, baseClass, checkDeep).ifSure { return it }
 
         val qualifiedName: String? = if (baseClass is KtLightClassForSourceDeclaration) {
-            val baseDescriptor = baseClass.getDescriptor()
-            if (baseDescriptor != null) DescriptorUtils.getFqName(baseDescriptor).asString() else null
+            baseClass.getDescriptor()?.let(DescriptorUtils::getFqName)?.asString()
         } else {
             baseClass.qualifiedName
         }
@@ -275,7 +276,8 @@ abstract class KtLightClassForSourceDeclaration(
         val thisDescriptor = getDescriptor()
 
         return if (qualifiedName != null && thisDescriptor != null) {
-            checkSuperTypeByFQName(thisDescriptor, qualifiedName, checkDeep)
+            qualifiedName != DescriptorUtils.getFqName(thisDescriptor).asString() &&
+                    checkSuperTypeByFQName(thisDescriptor, qualifiedName, checkDeep)
         } else {
             InheritanceImplUtil.isInheritor(this, baseClass, checkDeep)
         }
@@ -353,8 +355,13 @@ abstract class KtLightClassForSourceDeclaration(
                 return null
             }
 
-            if (!forceUsingOldLightClasses && Registry.`is`("kotlin.use.ultra.light.classes", true)) {
-                LightClassGenerationSupport.getInstance(classOrObject.project).createUltraLightClass(classOrObject)?.let { return it }
+            if (!forceUsingOldLightClasses) {
+                LightClassGenerationSupport.getInstance(classOrObject.project).run {
+                    if (useUltraLightClasses) {
+                        return createUltraLightClass(classOrObject)
+                            ?: error { "Unable to create UL class for ${classOrObject.javaClass.name}" }
+                    }
+                }
             }
 
             return when {
@@ -489,7 +496,7 @@ abstract class KtLightClassForSourceDeclaration(
             return PsiSubstitutor.EMPTY
         }
         val javaLangEnumsTypeParameter = ancestor.typeParameters.firstOrNull() ?: return PsiSubstitutor.EMPTY
-        return PsiSubstitutorImpl.createSubstitutor(
+        return PsiSubstitutor.createSubstitutor(
             mapOf(
                 javaLangEnumsTypeParameter to PsiImmediateClassType(this, PsiSubstitutor.EMPTY)
             )
@@ -544,11 +551,17 @@ fun KtClassOrObject.defaultJavaAncestorQualifiedName(): String? {
 }
 
 fun KtClassOrObject.shouldNotBeVisibleAsLightClass(): Boolean {
+
+    if (containingFile is KtCodeFragment) {
+        // Avoid building light classes for code fragments
+        return true
+    }
+
     if (parentsWithSelf.filterIsInstance<KtClassOrObject>().any { it.hasExpectModifier() }) {
         return true
     }
 
-    if (safeIsLocal()) {
+    if (isLocal) {
         if (containingFile.virtualFile == null) return true
         if (hasParseErrorsAround(this) || PsiUtilCore.hasErrorElementChild(this)) return true
     }

@@ -9,12 +9,12 @@ dependencies {
     api("org.apache.velocity:velocity:1.7") // we have to use the old version as it is the same as bundled into IntelliJ
     compileOnly(project(":kotlin-reflect-api"))
 
-    //needed only for message bundles
-    implementation(intellijDep()) { includeJars("util") }
+    implementation(intellijDep()) { includeJars("util") } //needed only for message bundles
+    testImplementation(intellijDep()) { includeJars("trove4j") } //needed only for message bundles
 
     testImplementation(project(":kotlin-test:kotlin-test-junit"))
-    testImplementation(commonDep("junit:junit"))
-    implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:${property("versions.kotlinx-collections-immutable")}")
+    implementation(kotlinxCollectionsImmutable())
+    implementation("com.google.code.gson:gson:2.8.6")
 }
 
 sourceSets {

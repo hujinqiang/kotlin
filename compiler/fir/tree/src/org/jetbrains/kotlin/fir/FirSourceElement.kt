@@ -6,7 +6,12 @@
 package org.jetbrains.kotlin.fir
 
 import com.intellij.lang.LighterASTNode
+import com.intellij.lang.TreeBackedLighterAST
+import com.intellij.openapi.util.Ref
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
 import com.intellij.util.diff.FlyweightCapableTreeStructure
 
@@ -133,11 +138,25 @@ sealed class FirFakeSourceElementKind : FirSourceElementKind() {
     // `a > b` will be wrapped in FirComparisonExpression
     // with real source which points to initial `a > b` expression
     // and inner FirFunctionCall will refer to a fake source
-    object GeneratedCompararisonExpression : FirFakeSourceElementKind()
+    object GeneratedComparisonExpression : FirFakeSourceElementKind()
 
     // a ?: b --> when(val $subj = a) { .... }
     // where `val $subj = a` has a fake source
     object WhenGeneratedSubject : FirFakeSourceElementKind()
+
+    // list[0] -> list.get(0) where name reference will have a fake source element
+    object ArrayAccessNameReference : FirFakeSourceElementKind()
+
+    // super.foo() --> super<Supertype>.foo()
+    // where `Supertype` has a fake source
+    object SuperCallImplicitType : FirFakeSourceElementKind()
+
+    // fun foo(vararg args: Int) {}
+    // fun bar(1, 2, 3) --> [resolved] fun bar(VarargArgument(1, 2, 3))
+    object VarargArgument : FirFakeSourceElementKind()
+
+    // Part of desugared x?.y
+    object CheckedSafeCallSubject : FirFakeSourceElementKind()
 }
 
 sealed class FirSourceElement {
@@ -145,9 +164,12 @@ sealed class FirSourceElement {
     abstract val startOffset: Int
     abstract val endOffset: Int
     abstract val kind: FirSourceElementKind
+    abstract val lighterASTNode: LighterASTNode
+    abstract val treeStructure: FlyweightCapableTreeStructure<LighterASTNode>
 }
 
-
+// NB: in certain situations, psi.node could be null
+// Potentially exceptions can be provoked by elementType / lighterASTNode
 sealed class FirPsiSourceElement<out P : PsiElement>(val psi: P) : FirSourceElement() {
     override val elementType: IElementType
         get() = psi.node.elementType
@@ -157,6 +179,76 @@ sealed class FirPsiSourceElement<out P : PsiElement>(val psi: P) : FirSourceElem
 
     override val endOffset: Int
         get() = psi.textRange.endOffset
+
+    override val lighterASTNode by lazy { TreeBackedLighterAST.wrap(psi.node) }
+
+    override val treeStructure: FlyweightCapableTreeStructure<LighterASTNode> by lazy { WrappedTreeStructure(psi.containingFile) }
+
+    private class WrappedTreeStructure(file: PsiFile) : FlyweightCapableTreeStructure<LighterASTNode> {
+        private val lighterAST = TreeBackedLighterAST(file.node)
+
+        private fun LighterASTNode.unwrap() = lighterAST.unwrap(this)
+
+        override fun toString(node: LighterASTNode): CharSequence = node.unwrap().text
+
+        override fun getRoot(): LighterASTNode = lighterAST.root
+
+        override fun getParent(node: LighterASTNode): LighterASTNode? =
+            node.unwrap().psi.parent?.node?.let { TreeBackedLighterAST.wrap(it) }
+
+        override fun getChildren(node: LighterASTNode, nodesRef: Ref<Array<LighterASTNode>>): Int {
+            val psi = node.unwrap().psi
+            val children = mutableListOf<PsiElement>()
+            var child = psi.firstChild
+            while (child != null) {
+                children += child
+                child = child.nextSibling
+            }
+            if (children.isEmpty()) {
+                nodesRef.set(LighterASTNode.EMPTY_ARRAY)
+            } else {
+                nodesRef.set(children.map { TreeBackedLighterAST.wrap(it.node) }.toTypedArray())
+            }
+            return children.size
+        }
+
+        override fun disposeChildren(p0: Array<out LighterASTNode>?, p1: Int) {
+        }
+
+        override fun getStartOffset(node: LighterASTNode): Int {
+            return getStartOffset(node.unwrap().psi)
+        }
+
+        private fun getStartOffset(element: PsiElement): Int {
+            var child = element.firstChild
+            if (child != null) {
+                while (child is PsiComment || child is PsiWhiteSpace) {
+                    child = child.nextSibling
+                }
+                if (child != null) {
+                    return getStartOffset(child)
+                }
+            }
+            return element.textRange.startOffset
+        }
+
+        override fun getEndOffset(node: LighterASTNode): Int {
+            return getEndOffset(node.unwrap().psi)
+        }
+
+        private fun getEndOffset(element: PsiElement): Int {
+            var child = element.lastChild
+            if (child != null) {
+                while (child is PsiComment || child is PsiWhiteSpace) {
+                    child = child.prevSibling
+                }
+                if (child != null) {
+                    return getEndOffset(child)
+                }
+            }
+            return element.textRange.endOffset
+        }
+    }
 }
 
 class FirRealPsiSourceElement<out P : PsiElement>(psi: P) : FirPsiSourceElement<P>(psi) {
@@ -165,28 +257,29 @@ class FirRealPsiSourceElement<out P : PsiElement>(psi: P) : FirPsiSourceElement<
 
 class FirFakeSourceElement<out P : PsiElement>(psi: P, override val kind: FirFakeSourceElementKind) : FirPsiSourceElement<P>(psi)
 
-fun FirSourceElement.withKind(newKind: FirSourceElementKind?): FirSourceElement {
-    if (newKind == null) return this
+fun FirSourceElement.fakeElement(newKind: FirFakeSourceElementKind): FirSourceElement {
     return when (this) {
-        is FirLightSourceElement -> this
-        is FirPsiSourceElement<*> -> when (newKind) {
-            kind -> this
-            FirRealSourceElementKind -> FirRealPsiSourceElement(psi)
-            is FirFakeSourceElementKind -> FirFakeSourceElement(psi, newKind)
-        }
+        is FirLightSourceElement -> FirLightSourceElement(lighterASTNode, startOffset, endOffset, treeStructure, newKind)
+        is FirPsiSourceElement<*> -> FirFakeSourceElement(psi, newKind)
     }
 }
 
+fun FirSourceElement.realElement(): FirSourceElement = when (this) {
+    is FirRealPsiSourceElement<*> -> this
+    is FirLightSourceElement -> FirLightSourceElement(lighterASTNode, startOffset, endOffset, treeStructure, FirRealSourceElementKind)
+    is FirPsiSourceElement<*> -> FirRealPsiSourceElement(psi)
+}
+
+
 class FirLightSourceElement(
-    val element: LighterASTNode,
+    override val lighterASTNode: LighterASTNode,
     override val startOffset: Int,
     override val endOffset: Int,
-    val tree: FlyweightCapableTreeStructure<LighterASTNode>
+    override val treeStructure: FlyweightCapableTreeStructure<LighterASTNode>,
+    override val kind: FirSourceElementKind = FirRealSourceElementKind,
 ) : FirSourceElement() {
     override val elementType: IElementType
-        get() = element.tokenType
-
-    override val kind: FirSourceElementKind get() = FirRealSourceElementKind
+        get() = lighterASTNode.tokenType
 }
 
 val FirSourceElement?.psi: PsiElement? get() = (this as? FirPsiSourceElement<*>)?.psi
@@ -202,8 +295,8 @@ inline fun PsiElement.toFirPsiSourceElement(kind: FirSourceElementKind = FirReal
 
 @Suppress("NOTHING_TO_INLINE")
 inline fun LighterASTNode.toFirLightSourceElement(
-    startOffset: Int, endOffset: Int,
-    tree: FlyweightCapableTreeStructure<LighterASTNode>
-): FirLightSourceElement = FirLightSourceElement(this, startOffset, endOffset, tree)
-
-val FirSourceElement?.lightNode: LighterASTNode? get() = (this as? FirLightSourceElement)?.element
+    tree: FlyweightCapableTreeStructure<LighterASTNode>,
+    kind: FirSourceElementKind = FirRealSourceElementKind,
+    startOffset: Int = this.startOffset,
+    endOffset: Int = this.endOffset
+): FirLightSourceElement = FirLightSourceElement(this, startOffset, endOffset, tree, kind)

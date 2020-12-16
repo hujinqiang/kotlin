@@ -77,6 +77,7 @@ class JvmBinaryAnnotationDeserializer(
                 annotationTypeRef = it.annotationTypeRef
                 argumentList = it.argumentList
                 useSiteTarget = AnnotationUseSiteTarget.PROPERTY
+                calleeReference = it.calleeReference
             }
         }
     }
@@ -99,6 +100,7 @@ class JvmBinaryAnnotationDeserializer(
                 annotationTypeRef = it.annotationTypeRef
                 argumentList = it.argumentList
                 useSiteTarget = AnnotationUseSiteTarget.FIELD
+                calleeReference = it.calleeReference
             }
         }
     }
@@ -118,6 +120,7 @@ class JvmBinaryAnnotationDeserializer(
                 annotationTypeRef = it.annotationTypeRef
                 argumentList = it.argumentList
                 useSiteTarget = AnnotationUseSiteTarget.PROPERTY_DELEGATE_FIELD
+                calleeReference = it.calleeReference
             }
         }
     }
@@ -157,6 +160,18 @@ class JvmBinaryAnnotationDeserializer(
         val methodSignature = getCallableSignature(callableProto, nameResolver, typeTable, kind) ?: return emptyList()
         val index = parameterIndex + computeJvmParameterIndexShift(classProto, callableProto)
         val paramSignature = MemberSignature.fromMethodSignatureAndParameterIndex(methodSignature, index)
+        return findJvmBinaryClassAndLoadMemberAnnotations(containerSource, paramSignature)
+    }
+
+    override fun loadExtensionReceiverParameterAnnotations(
+        containerSource: DeserializedContainerSource?,
+        callableProto: MessageLite,
+        nameResolver: NameResolver,
+        typeTable: TypeTable,
+        kind: CallableKind
+    ): List<FirAnnotationCall> {
+        val methodSignature = getCallableSignature(callableProto, nameResolver, typeTable, kind) ?: return emptyList()
+        val paramSignature = MemberSignature.fromMethodSignatureAndParameterIndex(methodSignature, 0)
         return findJvmBinaryClassAndLoadMemberAnnotations(containerSource, paramSignature)
     }
 

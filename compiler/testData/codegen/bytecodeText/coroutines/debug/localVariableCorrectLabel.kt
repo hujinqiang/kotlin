@@ -14,12 +14,12 @@ fun main(args: Array<String>) {
 @BuilderInference
 suspend fun SequenceScope<Int>.awaitSeq(): Int = 42
 
-// label numbers differ in BEs
 
+// 1 LOCALVARIABLE a I L[0-9]+ L18
+
+/* TODO: JVM_IR does not generate LINENUMBER at the end of the lambda */
 // JVM_TEMPLATES
-// 1 LOCALVARIABLE a I L17 L.*
-// 1 LINENUMBER 8 L17
+// 1 LINENUMBER 9 L19
 
-// JVM_IR_TEMPLATES
-// 1 LOCALVARIABLE a I L14 L.*
-// 1 LINENUMBER 8 L14
+
+// IGNORE_BACKEND_FIR: JVM_IR

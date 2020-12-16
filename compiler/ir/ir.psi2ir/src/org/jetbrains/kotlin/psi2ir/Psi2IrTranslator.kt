@@ -19,17 +19,19 @@ package org.jetbrains.kotlin.psi2ir
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.linkage.IrDeserializer
 import org.jetbrains.kotlin.ir.linkage.IrProvider
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.ir.util.ConstantValueGenerator
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.TypeTranslator
+import org.jetbrains.kotlin.ir.util.noUnboundLeft
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi2ir.generators.*
-import org.jetbrains.kotlin.psi2ir.transformations.insertImplicitCasts
+import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
+import org.jetbrains.kotlin.psi2ir.generators.GeneratorExtensions
+import org.jetbrains.kotlin.psi2ir.generators.ModuleGenerator
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.utils.SmartList
 
@@ -37,8 +39,7 @@ typealias Psi2IrPostprocessingStep = (IrModuleFragment) -> Unit
 
 class Psi2IrTranslator(
     val languageVersionSettings: LanguageVersionSettings,
-    val configuration: Psi2IrConfiguration = Psi2IrConfiguration(),
-    val signaturer: IdSignatureComposer
+    val configuration: Psi2IrConfiguration,
 ) {
     private val postprocessingSteps = SmartList<Psi2IrPostprocessingStep>()
 
@@ -46,31 +47,28 @@ class Psi2IrTranslator(
         postprocessingSteps.add(step)
     }
 
-    // NOTE: used only for test purpose
-    fun generateModule(
-        moduleDescriptor: ModuleDescriptor,
-        ktFiles: Collection<KtFile>,
-        bindingContext: BindingContext,
-        generatorExtensions: GeneratorExtensions,
-        nameProvider: NameProvider = NameProvider.DEFAULT
-    ): IrModuleFragment {
-        val context = createGeneratorContext(moduleDescriptor, bindingContext, nameProvider, extensions = generatorExtensions)
-        val irProviders = generateTypicalIrProviderList(
-            moduleDescriptor, context.irBuiltIns, context.symbolTable, extensions = generatorExtensions
-        )
-        return generateModuleFragment(context, ktFiles, irProviders, emptyList())
-    }
-
     fun createGeneratorContext(
         moduleDescriptor: ModuleDescriptor,
         bindingContext: BindingContext,
-        nameProvider: NameProvider = NameProvider.DEFAULT,
-        symbolTable: SymbolTable = SymbolTable(signaturer, nameProvider),
+        symbolTable: SymbolTable,
         extensions: GeneratorExtensions = GeneratorExtensions()
-    ): GeneratorContext =
-        createGeneratorContext(
-            configuration, moduleDescriptor, bindingContext, languageVersionSettings, symbolTable, extensions
+    ): GeneratorContext {
+        val typeTranslator = TypeTranslator(symbolTable, languageVersionSettings, moduleDescriptor.builtIns, extensions = extensions)
+        val constantValueGenerator = ConstantValueGenerator(moduleDescriptor, symbolTable)
+        typeTranslator.constantValueGenerator = constantValueGenerator
+        constantValueGenerator.typeTranslator = typeTranslator
+        return GeneratorContext(
+            configuration,
+            moduleDescriptor,
+            bindingContext,
+            languageVersionSettings,
+            symbolTable,
+            extensions,
+            typeTranslator,
+            constantValueGenerator,
+            IrBuiltIns(moduleDescriptor.builtIns, typeTranslator, symbolTable),
         )
+    }
 
     fun generateModuleFragment(
         context: GeneratorContext,
@@ -79,12 +77,8 @@ class Psi2IrTranslator(
         linkerExtensions: Collection<IrDeserializer.IrLinkerExtension>,
         expectDescriptorToSymbol: MutableMap<DeclarationDescriptor, IrSymbol>? = null
     ): IrModuleFragment {
-        val moduleGenerator = ModuleGenerator(context)
-        val irModule = moduleGenerator.generateModuleFragmentWithoutDependencies(ktFiles)
-
-        irModule.patchDeclarationParents()
-        expectDescriptorToSymbol?.let { referenceExpectsForUsedActuals(it, context.symbolTable, irModule) }
-        postprocess(context, irModule)
+        val moduleGenerator = ModuleGenerator(context, expectDescriptorToSymbol)
+        val irModule = moduleGenerator.generateModuleFragment(ktFiles)
 
         val deserializers = irProviders.filterIsInstance<IrDeserializer>()
         deserializers.forEach { it.init(irModule, linkerExtensions) }
@@ -92,7 +86,7 @@ class Psi2IrTranslator(
         moduleGenerator.generateUnboundSymbolsAsDependencies(irProviders)
 
         deserializers.forEach { it.postProcess() }
-        assert(context.symbolTable.allUnbound.isEmpty())
+        context.symbolTable.noUnboundLeft("Unbound symbols not allowed\n")
 
         postprocessingSteps.forEach { it.invoke(irModule) }
 //        assert(context.symbolTable.allUnbound.isEmpty()) // TODO: fix IrPluginContext to make it not produce additional external reference
@@ -102,23 +96,5 @@ class Psi2IrTranslator(
         deserializers.forEach { it.postProcess() }
 
         return irModule
-    }
-
-    private fun postprocess(context: GeneratorContext, irElement: IrModuleFragment) {
-        generateSyntheticDeclarations(irElement, context)
-        insertImplicitCasts(irElement, context)
-        generateAnnotationsForDeclarations(context, irElement)
-
-        irElement.patchDeclarationParents()
-    }
-
-    private fun generateAnnotationsForDeclarations(context: GeneratorContext, irElement: IrElement) {
-        val annotationGenerator = AnnotationGenerator(context)
-        irElement.acceptVoid(annotationGenerator)
-    }
-
-    private fun generateSyntheticDeclarations(moduleFragment: IrModuleFragment, context: GeneratorContext) {
-        val generator = IrSyntheticDeclarationGenerator(context)
-        moduleFragment.acceptChildrenVoid(generator)
     }
 }

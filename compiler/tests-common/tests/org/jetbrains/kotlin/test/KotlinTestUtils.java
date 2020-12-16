@@ -365,6 +365,9 @@ public class KotlinTestUtils {
         else if (jdkKind == TestJdkKind.FULL_JDK_9) {
             configuration.put(JVMConfigurationKeys.JDK_HOME, getJdk9Home());
         }
+        else if (jdkKind == TestJdkKind.FULL_JDK_15) {
+            configuration.put(JVMConfigurationKeys.JDK_HOME, getJdk15Home());
+        }
         else if (SystemInfo.IS_AT_LEAST_JAVA9) {
             configuration.put(JVMConfigurationKeys.JDK_HOME, new File(System.getProperty("java.home")));
         }
@@ -406,6 +409,20 @@ public class KotlinTestUtils {
             return null;
         }
         return new File(jdk11);
+    }
+
+    @NotNull
+    public static File getJdk15Home() {
+        String jdk15 = System.getenv("JDK_15");
+
+        if (jdk15 == null) {
+            jdk15 = System.getenv("JDK_15_0");
+        }
+
+        if (jdk15 == null) {
+            throw new AssertionError("Environment variable JDK_15 is not set!");
+        }
+        return new File(jdk15);
     }
 
     public static void resolveAllKotlinFiles(KotlinCoreEnvironment environment) throws IOException {
@@ -557,7 +574,7 @@ public class KotlinTestUtils {
                 int firstLineEnd = text.indexOf('\n');
                 return StringUtil.trimTrailing(text.substring(firstLineEnd + 1));
             }
-        }, "");
+        });
 
         Assert.assertTrue("Exactly two files expected: ", files.size() == 2);
 
@@ -608,7 +625,7 @@ public class KotlinTestUtils {
         }
         assert lastChild != null;
 
-        List<String> comments = ContainerUtil.newArrayList();
+        List<String> comments = new ArrayList<>();
 
         while (true) {
             if (lastChild.getNode().getElementType().equals(KtTokens.BLOCK_COMMENT)) {
@@ -668,8 +685,12 @@ public class KotlinTestUtils {
     }
 
     public static boolean compileJavaFilesExternallyWithJava9(@NotNull Collection<File> files, @NotNull List<String> options) {
+        return compileJavaFilesExternally(files, options, getJdk9Home());
+    }
+
+    public static boolean compileJavaFilesExternally(@NotNull Collection<File> files, @NotNull List<String> options, @NotNull File jdkHome) {
         List<String> command = new ArrayList<>();
-        command.add(new File(getJdk9Home(), "bin/javac").getPath());
+        command.add(new File(jdkHome, "bin/javac").getPath());
         command.addAll(options);
         for (File file : files) {
             command.add(file.getPath());
@@ -716,8 +737,7 @@ public class KotlinTestUtils {
         runTestImpl(testWithCustomIgnoreDirective(test, TargetBackend.ANY, IGNORE_BACKEND_DIRECTIVE_PREFIX), testCase, testDataFile);
     }
 
-    public static void runTest(@NotNull TestCase testCase, @NotNull Function0 test) {
-        //noinspection unchecked
+    public static void runTest(@NotNull TestCase testCase, @NotNull Function0<Unit> test) {
         MuteWithDatabaseKt.runTest(testCase, test);
     }
 
@@ -1007,7 +1027,7 @@ public class KotlinTestUtils {
     }
 
     private static Set<String> collectPathsMetadata(Class<?> testCaseClass) {
-        return ContainerUtil.newHashSet(ContainerUtil.map(collectMethodsMetadata(testCaseClass), KotlinTestUtils::nameToCompare));
+        return new HashSet<>(ContainerUtil.map(collectMethodsMetadata(testCaseClass), KotlinTestUtils::nameToCompare));
     }
 
     @Nullable

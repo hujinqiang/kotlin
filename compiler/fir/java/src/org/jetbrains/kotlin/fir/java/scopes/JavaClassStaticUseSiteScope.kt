@@ -7,8 +7,9 @@ package org.jetbrains.kotlin.fir.java.scopes
 
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.java.JavaTypeParameterStack
+import org.jetbrains.kotlin.fir.scopes.FirContainingNamesAwareScope
 import org.jetbrains.kotlin.fir.scopes.FirScope
-import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.scopes.getContainingCallableNamesIfPresent
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirVariableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.isStatic
@@ -21,12 +22,12 @@ class JavaClassStaticUseSiteScope internal constructor(
     private val superClassScope: FirScope,
     private val superTypesScopes: List<FirScope>,
     javaTypeParameterStack: JavaTypeParameterStack,
-) : FirScope() {
-    private val functions = hashMapOf<Name, Collection<FirFunctionSymbol<*>>>()
+) : FirScope(), FirContainingNamesAwareScope {
+    private val functions = hashMapOf<Name, Collection<FirNamedFunctionSymbol>>()
     private val properties = hashMapOf<Name, Collection<FirVariableSymbol<*>>>()
     private val overrideChecker = JavaOverrideChecker(session, javaTypeParameterStack)
 
-    override fun processFunctionsByName(name: Name, processor: (FirFunctionSymbol<*>) -> Unit) {
+    override fun processFunctionsByName(name: Name, processor: (FirNamedFunctionSymbol) -> Unit) {
         functions.getOrPut(name) {
             computeFunctions(name)
         }.forEach(processor)
@@ -41,7 +42,7 @@ class JavaClassStaticUseSiteScope internal constructor(
         val result = mutableListOf<FirNamedFunctionSymbol>()
 
         declaredMemberScope.processFunctionsByName(name) l@{ functionSymbol ->
-            if (functionSymbol !is FirNamedFunctionSymbol || !functionSymbol.isStatic) return@l
+            if (!functionSymbol.isStatic) return@l
 
             result.add(functionSymbol)
             superClassSymbols.removeAll { superClassSymbol ->
@@ -78,5 +79,29 @@ class JavaClassStaticUseSiteScope internal constructor(
         }
 
         return result
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun getCallableNames(): Set<Name> {
+        return buildSet {
+            addAll(declaredMemberScope.getContainingCallableNamesIfPresent())
+            for (superTypesScope in superTypesScopes) {
+                addAll(superTypesScope.getContainingCallableNamesIfPresent())
+            }
+        }
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    override fun getClassifierNames(): Set<Name> {
+        return buildSet {
+            addAll(declaredMemberScope.getContainingCallableNamesIfPresent())
+            for (superTypesScope in superTypesScopes) {
+                addAll(superTypesScope.getContainingCallableNamesIfPresent())
+            }
+        }
+    }
+
+    override fun mayContainName(name: Name): Boolean {
+        return declaredMemberScope.mayContainName(name) || superTypesScopes.any { it.mayContainName(name) }
     }
 }

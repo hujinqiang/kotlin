@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.descriptors.commonizer.core
 
-import org.jetbrains.kotlin.descriptors.Visibilities.*
-import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities.*
+import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.descriptors.commonizer.cir.CirPropertySetter
 import org.jetbrains.kotlin.descriptors.commonizer.cir.factory.CirPropertySetterFactory
 import org.junit.Test
@@ -14,28 +14,28 @@ import org.junit.Test
 class PropertySetterCommonizerTest : AbstractCommonizerTest<CirPropertySetter?, CirPropertySetter?>() {
 
     @Test
-    fun absentOnly() = super.doTestSuccess(
+    fun missingOnly() = super.doTestSuccess(
         expected = null,
         null, null, null
     )
 
     @Test(expected = IllegalCommonizerStateException::class)
-    fun absentAndPublic() = doTestFailure(
+    fun missingAndPublic() = doTestFailure(
         null, null, null, PUBLIC
     )
 
     @Test(expected = IllegalCommonizerStateException::class)
-    fun publicAndAbsent() = doTestFailure(
+    fun publicAndMissing() = doTestFailure(
         PUBLIC, PUBLIC, PUBLIC, null
     )
 
     @Test(expected = IllegalCommonizerStateException::class)
-    fun protectedAndAbsent() = doTestFailure(
+    fun protectedAndMissing() = doTestFailure(
         PROTECTED, PROTECTED, null
     )
 
     @Test(expected = IllegalCommonizerStateException::class)
-    fun absentAndInternal() = doTestFailure(
+    fun missingAndInternal() = doTestFailure(
         null, null, INTERNAL
     )
 
@@ -87,13 +87,13 @@ class PropertySetterCommonizerTest : AbstractCommonizerTest<CirPropertySetter?, 
         PUBLIC, LOCAL
     )
 
-    private fun doTestSuccess(expected: Visibility?, vararg variants: Visibility?) =
+    private fun doTestSuccess(expected: DescriptorVisibility?, vararg variants: DescriptorVisibility?) =
         super.doTestSuccess(
             expected = expected?.let { CirPropertySetterFactory.createDefaultNoAnnotations(expected) },
             *variants.map { it?.let(CirPropertySetterFactory::createDefaultNoAnnotations) }.toTypedArray()
         )
 
-    private fun doTestFailure(vararg variants: Visibility?) =
+    private fun doTestFailure(vararg variants: DescriptorVisibility?) =
         super.doTestFailure(
             *variants.map { it?.let(CirPropertySetterFactory::createDefaultNoAnnotations) }.toTypedArray(),
             shouldFailOnFirstVariant = false

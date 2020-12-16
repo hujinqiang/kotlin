@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.descriptors.impl.ClassDescriptorBase
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorFactory.createPrimaryConstructorForObject
-import org.jetbrains.kotlin.resolve.descriptorUtil.computeSealedSubclasses
+import org.jetbrains.kotlin.resolve.CliSealedClassInheritorsProvider
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.StaticScopeForKotlinEnum
@@ -29,7 +29,7 @@ class CommonizedClassDescriptor(
     name: Name,
     private val kind: ClassKind,
     private val modality: Modality,
-    private val visibility: Visibility,
+    private val visibility: DescriptorVisibility,
     private val isCompanion: Boolean,
     private val isData: Boolean,
     private val isInline: Boolean,
@@ -51,7 +51,14 @@ class CommonizedClassDescriptor(
         MemberScope.Empty
 
     private val typeConstructor = CommonizedClassTypeConstructor(targetComponents, cirSupertypes)
-    private val sealedSubclasses = targetComponents.storageManager.createLazyValue { computeSealedSubclasses(this) }
+    private val sealedSubclasses = targetComponents.storageManager.createLazyValue {
+        // TODO: pass proper language version settings
+        if (modality == Modality.SEALED) {
+            CliSealedClassInheritorsProvider.computeSealedSubclasses(this, allowSealedInheritorsInDifferentFilesOfSamePackage = false)
+        } else {
+            emptyList()
+        }
+    }
 
     private val declaredTypeParametersAndTypeParameterResolver = targetComponents.storageManager.createLazyValue {
         val parent = if (isInner) (containingDeclaration as? ClassDescriptor)?.getTypeParameterResolver() else null
@@ -80,6 +87,7 @@ class CommonizedClassDescriptor(
     override fun isExpect() = isExpect
     override fun isActual() = isActual
     override fun isFun() = false // TODO: modifier "fun" should be accessible from here too
+    override fun isValue() = false // TODO: modifier "value" should be accessible from here too
 
     override fun getUnsubstitutedMemberScope(kotlinTypeRefiner: KotlinTypeRefiner): CommonizedMemberScope {
         check(kotlinTypeRefiner == KotlinTypeRefiner.Default) {
@@ -147,6 +155,12 @@ class CommonizedClassDescriptor(
 class CommonizedClassConstructorDescriptor(
     containingDeclaration: ClassDescriptor,
     annotations: Annotations,
-    isPrimary: Boolean,
-    kind: CallableMemberDescriptor.Kind
-) : ClassConstructorDescriptorImpl(containingDeclaration, null, annotations, isPrimary, kind, SourceElement.NO_SOURCE)
+    isPrimary: Boolean
+) : ClassConstructorDescriptorImpl(
+    containingDeclaration,
+    null,
+    annotations,
+    isPrimary,
+    CallableMemberDescriptor.Kind.DECLARATION,
+    SourceElement.NO_SOURCE
+)

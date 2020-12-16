@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.fir.lazy
 
 import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
 import org.jetbrains.kotlin.fir.backend.declareThisReceiverParameter
 import org.jetbrains.kotlin.fir.backend.toIrType
@@ -16,37 +15,37 @@ import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.lazy.lazyVar
 import org.jetbrains.kotlin.ir.expressions.IrBody
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
-import org.jetbrains.kotlin.ir.util.transformIfNeeded
-import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
+import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 
 class Fir2IrLazyConstructor(
     components: Fir2IrComponents,
-    startOffset: Int,
-    endOffset: Int,
-    origin: IrDeclarationOrigin,
-    fir: FirConstructor,
-    symbol: Fir2IrConstructorSymbol
-) : AbstractFir2IrLazyDeclaration<FirConstructor, IrConstructor>(
-    components, startOffset, endOffset, origin, fir, symbol
-), IrConstructor {
+    override val startOffset: Int,
+    override val endOffset: Int,
+    override var origin: IrDeclarationOrigin,
+    override val fir: FirConstructor,
+    override val symbol: Fir2IrConstructorSymbol,
+) : IrConstructor(), AbstractFir2IrLazyDeclaration<FirConstructor, IrConstructor>, Fir2IrComponents by components {
     init {
         symbol.bind(this)
         classifierStorage.preCacheTypeParameters(fir)
     }
+
+    override var annotations: List<IrConstructorCall> by createLazyAnnotations()
+    override lateinit var typeParameters: List<IrTypeParameter>
+    override lateinit var parent: IrDeclarationParent
 
     override val isPrimary: Boolean
         get() = fir.isPrimary
 
     @ObsoleteDescriptorBasedAPI
     override val descriptor: ClassConstructorDescriptor
-        get() = super.descriptor as ClassConstructorDescriptor
-
-    override val symbol: Fir2IrConstructorSymbol
-        get() = super.symbol as Fir2IrConstructorSymbol
+        get() = symbol.descriptor
 
     override val isInline: Boolean
         get() = fir.isInline
@@ -62,8 +61,8 @@ class Fir2IrLazyConstructor(
     override val name: Name
         get() = Name.special("<init>")
 
-    override var visibility: Visibility
-        get() = fir.visibility
+    @Suppress("SetterBackingFieldAssignment")
+    override var visibility: DescriptorVisibility = components.visibilityConverter.convertToDescriptorVisibility(fir.visibility)
         set(_) {
             error("Mutating Fir2Ir lazy elements is not possible")
         }
@@ -111,27 +110,10 @@ class Fir2IrLazyConstructor(
         get() = null
         set(_) = error("We should never need to store metadata of external declarations.")
 
+    override val containerSource: DeserializedContainerSource?
+        get() = fir.containerSource
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitConstructor(this, data)
-    }
-
-    override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
-        typeParameters.forEach { it.accept(visitor, data) }
-
-        dispatchReceiverParameter?.accept(visitor, data)
-        extensionReceiverParameter?.accept(visitor, data)
-        valueParameters.forEach { it.accept(visitor, data) }
-
-        body?.accept(visitor, data)
-    }
-
-    override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
-        typeParameters = typeParameters.transformIfNeeded(transformer, data)
-
-        dispatchReceiverParameter = dispatchReceiverParameter?.transform(transformer, data)
-        extensionReceiverParameter = extensionReceiverParameter?.transform(transformer, data)
-        valueParameters = valueParameters.transformIfNeeded(transformer, data)
-
-        body = body?.transform(transformer, data)
     }
 }

@@ -6,7 +6,7 @@
 package org.jetbrains.kotlin.idea.references
 
 import org.jetbrains.kotlin.idea.frontend.api.KtAnalysisSession
-import org.jetbrains.kotlin.idea.frontend.api.VariableAsFunctionLikeCallInfo
+import org.jetbrains.kotlin.idea.frontend.api.calls.KtVariableWithInvokeFunctionCall
 import org.jetbrains.kotlin.idea.frontend.api.symbols.KtSymbol
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
@@ -16,10 +16,10 @@ class KtFirInvokeFunctionReference(expression: KtCallExpression) : KtInvokeFunct
         TODO("Not yet implemented")
     }
 
-    override fun resolveToSymbols(analysisSession: KtAnalysisSession): Collection<KtSymbol> {
-        val call = analysisSession.resolveCall(expression) ?: return emptyList()
-        if (call is VariableAsFunctionLikeCallInfo) {
-            return listOf(call.invokeFunction)
+    override fun KtAnalysisSession.resolveToSymbols(): Collection<KtSymbol> {
+        val call = expression.resolveCall() ?: return emptyList()
+        if (call is KtVariableWithInvokeFunctionCall) {
+            return call.invokeFunction.candidates
         }
         return emptyList()
     }

@@ -11,6 +11,7 @@ import test.collections.behaviors.iteratorBehavior
 import test.collections.behaviors.setBehavior
 import test.collections.compare
 import kotlin.math.sign
+import kotlin.native.concurrent.SharedImmutable
 import kotlin.random.Random
 
 
@@ -18,6 +19,7 @@ fun createString(content: String): CharSequence = content
 fun createStringBuilder(content: String): CharSequence = StringBuilder((content as Any).toString()) // required for Rhino JS
 
 
+@SharedImmutable
 val charSequenceBuilders = listOf(::createString, ::createStringBuilder)
 
 fun withOneCharSequenceArg(f: ((String) -> CharSequence) -> Unit) {
@@ -895,6 +897,23 @@ class StringTest {
         assertEquals("/b/", input.replace("ab", "/", ignoreCase = true))
 
         assertEquals("-a-b-b-A-b-", input.replace("", "-"))
+        assertEquals("-a-b-b-A-b-", input.replace("", "-", ignoreCase = true))
+
+        fun testIgnoreCase(chars: String) {
+            for ((i, c) in chars.withIndex()) {
+                val message = "Char: $c (${c.toInt()})"
+                val expectOneReplaced = chars.replaceRange(i..i, "_")
+                val expectAllReplaced = "_".repeat(chars.length)
+                assertEquals(expectOneReplaced, chars.replace(c, '_'), message)
+                assertEquals(expectAllReplaced, chars.replace(c, '_', ignoreCase = true), "$message, ignoreCase")
+                assertEquals(expectOneReplaced, chars.replace(c.toString(), "_"), "$message, as string")
+                assertEquals(expectAllReplaced, chars.replace(c.toString(), "_", ignoreCase = true), "$message, as string, ignoreCase")
+            }
+        }
+
+        testIgnoreCase("üÜ")
+        testIgnoreCase("öÖ")
+        testIgnoreCase("äÄ")
     }
 
     @Test fun replaceFirst() {
@@ -1397,7 +1416,7 @@ class StringTest {
     }
 
     @Test
-    fun scanReduceIndexed() = withOneCharSequenceArg { arg1 ->
+    fun runningReduceIndexed() = withOneCharSequenceArg { arg1 ->
         for (size in 0 until 4) {
             val expected = listOf(0, 1, 6, 27).take(size).map { it.toChar() }
             val source = arg1((0.toChar() until size.toChar()).joinToString(separator = ""))

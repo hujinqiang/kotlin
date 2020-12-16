@@ -56,6 +56,7 @@ import org.jetbrains.kotlin.util.ReenteringLazyValueComputationException;
 
 import java.util.*;
 
+import static org.jetbrains.kotlin.config.LanguageFeature.AllowSealedInheritorsInDifferentFilesOfSamePackage;
 import static org.jetbrains.kotlin.config.LanguageFeature.TopLevelSealedInheritance;
 import static org.jetbrains.kotlin.diagnostics.Errors.*;
 import static org.jetbrains.kotlin.resolve.BindingContext.*;
@@ -635,13 +636,18 @@ public class BodyResolver {
                         containingDescriptor = containingDescriptor.getContainingDeclaration();
                     }
                     if (containingDescriptor == null) {
-                        trace.report(SEALED_SUPERTYPE.on(typeReference));
+                        if (
+                            !languageVersionSettings.supportsFeature(AllowSealedInheritorsInDifferentFilesOfSamePackage) ||
+                            DescriptorUtils.isLocal(supertypeOwner)
+                        ) {
+                            trace.report(SEALED_SUPERTYPE.on(typeReference));
+                        }
                     }
                     else {
                         trace.report(SEALED_SUPERTYPE_IN_LOCAL_CLASS.on(typeReference));
                     }
                 }
-                else if (ModalityKt.isFinalOrEnum(classDescriptor)) {
+                else if (ModalityUtilsKt.isFinalOrEnum(classDescriptor)) {
                     trace.report(FINAL_SUPERTYPE.on(typeReference));
                 }
                 else if (KotlinBuiltIns.isEnum(classDescriptor)) {

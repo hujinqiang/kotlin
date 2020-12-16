@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.gradle
 
 import com.google.gson.Gson
 import org.gradle.api.logging.LogLevel
+import org.gradle.api.logging.configuration.WarningMode
 import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
 import org.jetbrains.kotlin.gradle.targets.js.ir.KLIB_TYPE
 import org.jetbrains.kotlin.gradle.targets.js.npm.*
@@ -22,6 +23,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
+
+    override fun defaultBuildOptions(): BuildOptions {
+        return super.defaultBuildOptions().copy(warningMode = WarningMode.Summary)
+    }
+
     @Test
     fun generateDts() {
         val project = Project("kotlin2JsIrDtsGeneration")
@@ -116,6 +122,11 @@ class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
 }
 
 class Kotlin2JsGradlePluginIT : AbstractKotlin2JsGradlePluginIT(false) {
+
+    override fun defaultBuildOptions(): BuildOptions {
+        return super.defaultBuildOptions().copy(warningMode = WarningMode.Summary)
+    }
+
     @Test
     fun testKotlinJsBuiltins() {
         val project = Project("kotlinBuiltins")
@@ -211,6 +222,37 @@ class Kotlin2JsGradlePluginIT : AbstractKotlin2JsGradlePluginIT(false) {
 
             assertFileExists("$pathPrefix/kotlin.js")
             assertTrue(fileInWorkingDir("$pathPrefix/kotlin.js").length() < 500 * 1000, "Looks like kotlin.js file was not minified by DCE")
+        }
+    }
+
+    @Test
+    fun testKotlinJsDependencyWithJsFiles() = with(Project("kotlin-js-dependency-with-js-files")) {
+        setupWorkingDir()
+        gradleBuildScript().modify(::transformBuildScriptWithPluginsDsl)
+
+        build(
+            "packageJson"
+        ) {
+            assertSuccessful()
+
+            val dependency = "2p-parser-core"
+            val version = "0.11.1"
+
+            assertFileExists("build/js/packages_imported/$dependency/$version")
+
+            fun getPackageJson(dependency: String, version: String) =
+                fileInWorkingDir("build/js/packages_imported/$dependency/$version")
+                    .resolve(NpmProject.PACKAGE_JSON)
+                    .let {
+                        Gson().fromJson(it.readText(), PackageJson::class.java)
+                    }
+
+
+            val packageJson = getPackageJson(dependency, version)
+
+            assertEquals(dependency, packageJson.name)
+            assertEquals(version, packageJson.version)
+            assertEquals("$dependency.js", packageJson.main)
         }
     }
 }
@@ -576,22 +618,40 @@ abstract class AbstractKotlin2JsGradlePluginIT(private val irBackend: Boolean) :
             zipFile.getInputStream(packageJsonCandidates.single()).use {
                 it.reader().use {
                     val packageJson = Gson().fromJson(it, PackageJson::class.java)
-                    assertTrue("There is no expected dev dependencies in package.json") {
-                        packageJson.devDependencies.isEmpty()
+                    val devDep = "42"
+                    val devDepVersion = "0.0.1"
+                    assertTrue(
+                        "Dev dependency \"$devDep\": \"$devDepVersion\" in package.json expected, but actual:\n" +
+                                "${packageJson.devDependencies}"
+                    ) {
+                        val devDependencies = packageJson.devDependencies
+                        devDependencies
+                            .containsKey(devDep) &&
+                                devDependencies[devDep] == devDepVersion
                     }
 
-                    assertTrue("There is expected dependency \"@yworks/optimizer\": \"1.0.6\" in package.json") {
+                    val dep = "@yworks/optimizer"
+                    val depVersion = "1.0.6"
+                    assertTrue(
+                        "Dependency \"$dep\": \"$depVersion\" in package.json expected, but actual:\n" +
+                                "${packageJson.dependencies}"
+                    ) {
                         val dependencies = packageJson.dependencies
                         dependencies
-                            .containsKey("@yworks/optimizer") &&
-                                dependencies["@yworks/optimizer"] == "1.0.6"
+                            .containsKey(dep) &&
+                                dependencies[dep] == depVersion
                     }
 
-                    assertTrue("There is expected peer dependency \"date-arithmetic\": \"4.1.0\" in package.json") {
+                    val peerDep = "date-arithmetic"
+                    val peerDepVersion = "4.1.0"
+                    assertTrue(
+                        "Peer dependency \"$peerDep\": \"$peerDepVersion\" in package.json expected, but actual:\n" +
+                                "${packageJson.peerDependencies}"
+                    ) {
                         val peerDependencies = packageJson.peerDependencies
                         peerDependencies
-                            .containsKey("date-arithmetic") &&
-                                peerDependencies["date-arithmetic"] == "4.1.0"
+                            .containsKey(peerDep) &&
+                                peerDependencies[peerDep] == peerDepVersion
                     }
                 }
             }
@@ -668,7 +728,7 @@ abstract class AbstractKotlin2JsGradlePluginIT(private val irBackend: Boolean) :
         build("clean", "browserDistribution") {
             assertTasksExecuted(
                 ":app:processResources",
-                ":app:browserDistributeResources"
+                if (irBackend) ":app:browserProductionExecutableDistributeResources" else ":app:browserDistributeResources"
             )
 
             assertFileExists("app/build/distributions/index.html")
@@ -706,6 +766,61 @@ abstract class AbstractKotlin2JsGradlePluginIT(private val irBackend: Boolean) :
             val dependency = "kotlinx-coroutines-core"
             assertFileVersion(basePackageJson, dependency)
             assertFileVersion(libPackageJson, dependency)
+        }
+    }
+
+    @Test
+    fun testYarnResolution() = with(Project("kotlin-js-yarn-resolutions")) {
+        setupWorkingDir()
+        gradleBuildScript().modify(::transformBuildScriptWithPluginsDsl)
+
+        build("packageJson", "rootPackageJson", "kotlinNpmInstall") {
+            assertSuccessful()
+
+            fun getPackageJson() =
+                fileInWorkingDir("build/js")
+                    .resolve(NpmProject.PACKAGE_JSON)
+                    .let {
+                        Gson().fromJson(it.readText(), PackageJson::class.java)
+                    }
+
+            val name = "lodash"
+            val version = getPackageJson().resolutions?.get(name)
+            val requiredVersion = ">=1.0.0 <1.2.1 || >1.4.0 <2.0.0"
+            assertTrue("Root package.json must have resolution $name with version $requiredVersion, but $version found") {
+                version == requiredVersion
+            }
+
+            val react = "react"
+            val reactVersion = getPackageJson().resolutions?.get(react)
+            val requiredReactVersion = "16.0.0"
+            assertTrue("Root package.json must have resolution $react with version $requiredReactVersion, but $reactVersion found") {
+                reactVersion == requiredReactVersion
+            }
+        }
+    }
+
+    @Test
+    fun testDirectoryDependencyNotFailProjectResolution() {
+        with(Project("kotlin-js-nodejs-project")) {
+            setupWorkingDir()
+            gradleBuildScript().modify(::transformBuildScriptWithPluginsDsl)
+            gradleSettingsScript().modify(::transformBuildScriptWithPluginsDsl)
+
+            gradleBuildScript().appendText(
+                """${"\n"}
+                dependencies {
+                    implementation(files("${"$"}{projectDir}/custom"))
+                    implementation(files("${"$"}{projectDir}/custom2"))
+                }
+            """.trimIndent()
+            )
+
+            build(
+                "packageJson"
+            ) {
+                assertSuccessful()
+            }
         }
     }
 }

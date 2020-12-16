@@ -5,36 +5,59 @@ class A {
 
 // SYMBOLS:
 /*
-KtFirPropertySymbol:
-  fqName: A.a
+KtFirKotlinPropertySymbol:
+  annotations: []
+  callableIdIfNonLocal: A.a
+  getter: KtFirPropertyGetterSymbol(<getter>)
+  hasBackingField: true
+  hasGetter: true
+  hasSetter: false
+  initializer: 10
+  isConst: false
   isExtension: false
+  isLateInit: false
+  isOverride: false
   isVal: true
   modality: FINAL
   name: a
   origin: SOURCE
-  receiverType: kotlin/Int
+  receiverTypeAndAnnotations: null
+  setter: null
   symbolKind: MEMBER
   type: kotlin/Int
+  visibility: PUBLIC
 
 KtFirFunctionSymbol:
-  fqName: A.x
+  annotations: []
+  callableIdIfNonLocal: A.x
   isExtension: false
+  isExternal: false
+  isInline: false
   isOperator: false
+  isOverride: false
   isSuspend: false
   modality: FINAL
   name: x
   origin: SOURCE
+  receiverTypeAndAnnotations: null
   symbolKind: MEMBER
   type: kotlin/Int
   typeParameters: []
   valueParameters: []
+  visibility: PUBLIC
 
 KtFirClassOrObjectSymbol:
-  classId: A
+  annotations: []
+  classIdIfNonLocal: A
   classKind: CLASS
+  companionObject: null
+  isInner: false
   modality: FINAL
   name: A
   origin: SOURCE
+  primaryConstructor: KtFirConstructorSymbol(<constructor>)
+  superTypes: [kotlin/Any]
   symbolKind: TOP_LEVEL
   typeParameters: []
+  visibility: PUBLIC
 */

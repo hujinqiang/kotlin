@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.mainKts.test
 import org.jetbrains.kotlin.mainKts.COMPILED_SCRIPTS_CACHE_DIR_PROPERTY
 import org.jetbrains.kotlin.mainKts.impl.Directories
 import org.jetbrains.kotlin.mainKts.MainKtsScript
+import org.jetbrains.kotlin.scripting.compiler.plugin.assertTrue
 import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.*
 import java.util.*
@@ -37,7 +39,7 @@ fun evalFile(scriptFile: File, cacheDir: File? = null): ResultWithDiagnostics<Ev
 
 
 const val TEST_DATA_ROOT = "libraries/tools/kotlin-main-kts-test/testData"
-val OUT_FROM_IMPORT_TEST = listOf("Hi from common", "Hi from middle", "sharedVar == 5")
+val OUT_FROM_IMPORT_TEST = listOf("Hi from common", "Hi from middle", "Hi from main", "sharedVar == 5")
 
 
 class MainKtsTest {
@@ -58,6 +60,16 @@ class MainKtsTest {
             resErr is ResultWithDiagnostics.Failure &&
                     resErr.reports.any { it.message == "Unresolved reference: hamcrest" }
         )
+    }
+
+    @Test
+    fun testResolveRuntimeDeps() {
+        val resOk = evalFile(File("$TEST_DATA_ROOT/resolve-with-runtime.main.kts"))
+        assertSucceeded(resOk)
+
+        val resultValue = resOk.valueOrThrow().returnValue
+        assertTrue(resultValue is ResultValue.Value) { "Result value should be of type Value" }
+        assertEquals("John Smith", (resultValue as ResultValue.Value).value)
     }
 
 //    @Test

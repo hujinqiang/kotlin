@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.gradle
 
 import org.jetbrains.kotlin.idea.codeInsight.gradle.MultiplePluginVersionGradleImportingTestCase
+import org.jetbrains.kotlin.idea.codeInsight.gradle.mppImportTestMinVersionForMaster
 import org.jetbrains.plugins.gradle.tooling.annotation.PluginTargetVersions
 import org.junit.Test
 
@@ -13,20 +14,20 @@ import org.junit.Test
 class ImportAndCheckHighlighting : MultiplePluginVersionGradleImportingTestCase() {
 
     @Test
-    @PluginTargetVersions(gradleVersion = "4.0+", pluginVersion = "1.3.40+")
+    @PluginTargetVersions(pluginVersion = "1.3.40+", gradleVersionForLatestPlugin = mppImportTestMinVersionForMaster)
     fun testMultiplatformLibrary() {
         importAndCheckHighlighting()
     }
 
     @Test
-    @PluginTargetVersions(gradleVersion = "4.0+", pluginVersion = "1.3.40+")
+    @PluginTargetVersions(pluginVersion = "1.3.40+", gradleVersionForLatestPlugin = mppImportTestMinVersionForMaster)
     fun testUnresolvedInMultiplatformLibrary() {
         importAndCheckHighlighting(false, false)
     }
 
     private fun importAndCheckHighlighting(testLineMarkers: Boolean = true, checkWarnings: Boolean = true) {
         val files = configureByFiles()
-        importProject()
+        importProject(skipIndexing = false)
         val project = myTestFixture.project
         checkFiles(
             files.filter { it.extension == "kt" || it.extension == "java" },

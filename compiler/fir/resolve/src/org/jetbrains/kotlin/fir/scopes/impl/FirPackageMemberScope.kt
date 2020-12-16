@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.fir.scopes.impl
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.resolve.firSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
+import org.jetbrains.kotlin.fir.resolve.transformers.ensureResolvedForCalls
 import org.jetbrains.kotlin.fir.scopes.FirScope
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.name.ClassId
@@ -35,23 +36,24 @@ class FirPackageMemberScope(val fqName: FqName, val session: FirSession) : FirSc
         }
     }
 
-    override fun processFunctionsByName(name: Name, processor: (FirFunctionSymbol<*>) -> Unit) {
-        val symbols = callableCache.getOrPut(name) {
-            symbolProvider.getTopLevelCallableSymbols(fqName, name)
-        }
-        for (symbol in symbols) {
-            if (symbol is FirFunctionSymbol<*>) {
-                processor(symbol)
-            }
-        }
+    override fun processFunctionsByName(name: Name, processor: (FirNamedFunctionSymbol) -> Unit) {
+        processCallables(name, processor)
     }
 
     override fun processPropertiesByName(name: Name, processor: (FirVariableSymbol<*>) -> Unit) {
+        processCallables(name, processor)
+    }
+
+    private inline fun <reified D : FirCallableSymbol<*>> processCallables(
+        name: Name,
+        processor: (D) -> Unit
+    ) {
         val symbols = callableCache.getOrPut(name) {
             symbolProvider.getTopLevelCallableSymbols(fqName, name)
         }
         for (symbol in symbols) {
-            if (symbol is FirPropertySymbol) {
+            if (symbol is D) {
+                symbol.ensureResolvedForCalls(session)
                 processor(symbol)
             }
         }

@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.checkers
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiElementFinder
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.rt.execution.junit.FileComparisonFailure
 import junit.framework.AssertionFailedError
@@ -15,6 +16,7 @@ import junit.framework.TestCase
 import org.jetbrains.kotlin.TestsCompilerError
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.analyzer.common.CommonResolverForModuleFactory
+import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltIns
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.GroupingMessageCollector
@@ -29,6 +31,7 @@ import org.jetbrains.kotlin.context.SimpleGlobalContext
 import org.jetbrains.kotlin.context.withModule
 import org.jetbrains.kotlin.context.withProject
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
+import org.jetbrains.kotlin.descriptors.ModuleCapability
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.PackageViewDescriptor
 import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider
@@ -123,15 +126,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
 
             val oldModule = modules[testModule]!!
 
-            val languageVersionSettings =
-                if (coroutinesPackage.isNotEmpty()) {
-                    val isExperimental = coroutinesPackage == DescriptorUtils.COROUTINES_PACKAGE_FQ_NAME_EXPERIMENTAL.asString()
-                    CompilerTestLanguageVersionSettings(
-                        DEFAULT_DIAGNOSTIC_TESTS_FEATURES,
-                        if (isExperimental) ApiVersion.KOTLIN_1_2 else ApiVersion.KOTLIN_1_3,
-                        if (isExperimental) LanguageVersion.KOTLIN_1_2 else LanguageVersion.KOTLIN_1_3
-                    )
-                } else loadLanguageVersionSettings(testFilesInModule)
+            val languageVersionSettings = loadLanguageVersionSettings(testFilesInModule)
 
             languageVersionSettingsByModule[testModule] = languageVersionSettings
 
@@ -176,7 +171,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
         var exceptionFromDescriptorValidation: Throwable? = null
         try {
             val expectedFile = getExpectedDescriptorFile(testDataFile, files)
-            validateAndCompareDescriptorWithFile(expectedFile, files, modules, coroutinesPackage)
+            validateAndCompareDescriptorWithFile(expectedFile, files, modules)
         } catch (e: Throwable) {
             exceptionFromDescriptorValidation = e
         }
@@ -240,9 +235,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
             )
         }
 
-        KotlinTestUtils.assertEqualsToFile(getExpectedDiagnosticsFile(testDataFile), actualText.cleanupInferenceDiagnostics()) { s ->
-            s.replace("COROUTINES_PACKAGE", coroutinesPackage)
-        }
+        checkDiagnostics(actualText.cleanupInferenceDiagnostics(), testDataFile)
 
         assertTrue("Diagnostics mismatch. See the output above", ok)
 
@@ -257,6 +250,10 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
         if (shouldValidateFirTestData(testDataFile)) {
             checkFirTestdata(testDataFile, files)
         }
+    }
+
+    protected open fun checkDiagnostics(actualText: String, testDataFile: File) {
+        KotlinTestUtils.assertEqualsToFile(getExpectedDiagnosticsFile(testDataFile), actualText)
     }
 
     private fun checkFirTestdata(testDataFile: File, files: List<TestFile>) {
@@ -281,11 +278,11 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
         val testRunner = object : AbstractFirOldFrontendDiagnosticsTest() {
             init {
                 environment = this@AbstractDiagnosticsTest.environment
-                coroutinesPackage = this@AbstractDiagnosticsTest.coroutinesPackage
             }
         }
         if (testDataFile.readText().contains("// FIR_IDENTICAL")) {
             try {
+                PsiElementFinder.EP.getPoint(environment.project).unregisterExtension(JavaElementFinder::class.java)
                 testRunner.analyzeAndCheckUnhandled(testDataFile, files)
             } catch (e: FileComparisonFailure) {
                 println("Old FE & FIR produces different diagnostics for this file. Please remove FIR_IDENTICAL line manually")
@@ -520,8 +517,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
     private fun validateAndCompareDescriptorWithFile(
         expectedFile: File,
         testFiles: List<TestFile>,
-        modules: Map<TestModule?, ModuleDescriptorImpl>,
-        coroutinesPackage: String
+        modules: Map<TestModule?, ModuleDescriptorImpl>
     ) {
         if (skipDescriptorsValidation()) return
         if (testFiles.any { file -> InTextDirectivesUtils.isDirectiveDefined(file.expectedText, "// SKIP_TXT") }) {
@@ -582,9 +578,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
                     "Such tests are hard to maintain, take long time to execute and are subject to sudden unreviewed changes anyway."
         }
 
-        KotlinTestUtils.assertEqualsToFile(expectedFile, allPackagesText) { s ->
-            s.replace("COROUTINES_PACKAGE", coroutinesPackage)
-        }
+        KotlinTestUtils.assertEqualsToFile(expectedFile, allPackagesText)
     }
 
 
@@ -616,6 +610,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
                         getTopLevelPackagesFromFileList(getKtFiles(testFiles, false))
                 ).toSet()
 
+        val checkTypeEnabled = testFiles.any { it.declareCheckType }
         val stepIntoFilter = Predicate<DeclarationDescriptor> { descriptor ->
             val module = DescriptorUtils.getContainingModuleOrNull(descriptor)
             if (module !in modules) return@Predicate false
@@ -624,6 +619,8 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
                 val fqName = descriptor.fqName
                 return@Predicate fqName.isRoot || fqName.pathSegments().first() in packagesNames
             }
+
+            if (checkTypeEnabled && descriptor.name in NAMES_OF_CHECK_TYPE_HELPER) return@Predicate false
 
             true
         }
@@ -660,7 +657,7 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
             val dependencies = ArrayList<ModuleDescriptorImpl>()
             dependencies.add(module)
             for (dependency in testModule.dependencies) {
-                dependencies.add(modules[dependency]!!)
+                dependencies.add(modules[dependency as TestModule?]!!)
             }
 
             dependencies.add(module.builtIns.builtInsModule)
@@ -758,6 +755,8 @@ abstract class AbstractDiagnosticsTest : BaseDiagnosticsTest() {
     companion object {
         private val HASH_SANITIZER = fun(s: String): String = s.replace("@(\\d)+".toRegex(), "")
 
-        private val MODULE_FILES = ModuleDescriptor.Capability<List<KtFile>>("")
+        private val MODULE_FILES = ModuleCapability<List<KtFile>>("")
+
+        private val NAMES_OF_CHECK_TYPE_HELPER = listOf("checkSubtype", "CheckTypeInv", "_", "checkType").map { Name.identifier(it) }
     }
 }

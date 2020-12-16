@@ -5,14 +5,18 @@
 
 package org.jetbrains.kotlin.fir.backend.evaluate
 
+import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
+import org.jetbrains.kotlin.ir.declarations.IrField
+import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationBase
+import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
 import org.jetbrains.kotlin.ir.interpreter.EvaluationMode
 import org.jetbrains.kotlin.ir.interpreter.IrCompileTimeChecker
 import org.jetbrains.kotlin.ir.interpreter.IrInterpreter
 import org.jetbrains.kotlin.ir.interpreter.toIrConst
-import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
-import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 
@@ -50,34 +54,50 @@ class IrConstTransformer(irBuiltIns: IrBuiltIns) : IrElementTransformerVoid() {
         return declaration
     }
 
-    override fun visitDeclaration(declaration: IrDeclaration): IrStatement {
+    override fun visitDeclaration(declaration: IrDeclarationBase): IrStatement {
         transformAnnotations(declaration)
         return super.visitDeclaration(declaration)
     }
 
     private fun transformAnnotations(annotationContainer: IrAnnotationContainer) {
         annotationContainer.annotations.forEach { annotation ->
-            for (i in 0 until annotation.valueArgumentsCount) {
-                val arg = annotation.getValueArgument(i) ?: continue
-                when (arg) {
-                    is IrVararg -> arg.transformVarArg()
-                    else -> annotation.putValueArgument(i, arg.transformSingleArg(annotation.symbol.owner.valueParameters[i].type))
-                }
+            transformAnnotation(annotation)
+        }
+    }
+
+    private fun transformAnnotation(annotation: IrConstructorCall) {
+        for (i in 0 until annotation.valueArgumentsCount) {
+            val arg = annotation.getValueArgument(i) ?: continue
+            when (arg) {
+                is IrVararg -> annotation.putValueArgument(i, arg.transformVarArg())
+                else -> annotation.putValueArgument(i, arg.transformSingleArg(annotation.symbol.owner.valueParameters[i].type))
             }
         }
     }
 
-    private fun IrVararg.transformVarArg() {
-        for (i in this.elements.indices) {
-            val irVarargElement = this.elements[i] as? IrExpression ?: continue
-            this.putElement(i, irVarargElement.transformSingleArg(this.varargElementType))
+    private fun IrVararg.transformVarArg(): IrVararg {
+        if (elements.isEmpty()) return this
+        val newIrVararg = IrVarargImpl(this.startOffset, this.endOffset, this.type, this.varargElementType)
+        for (element in this.elements) {
+            when (element) {
+                is IrExpression -> newIrVararg.addElement(element.transformSingleArg(this.varargElementType))
+                is IrSpreadElement -> {
+                    when (val expression = element.expression) {
+                        is IrVararg -> expression.transformVarArg().elements.forEach { newIrVararg.addElement(it) }
+                        else -> newIrVararg.addElement(expression.transformSingleArg(this.varargElementType))
+                    }
+                }
+            }
         }
+        return newIrVararg
     }
 
     private fun IrExpression.transformSingleArg(expectedType: IrType): IrExpression {
         if (this.accept(IrCompileTimeChecker(mode = EvaluationMode.ONLY_BUILTINS), null)) {
             val const = interpreter.interpret(this).replaceIfError(this)
             return const.convertToConstIfPossible(expectedType)
+        } else if (this is IrConstructorCall) {
+            transformAnnotation(this)
         }
         return this
     }

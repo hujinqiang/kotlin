@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
 import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.expressions.impl.IrBlockBodyImpl
 import org.jetbrains.kotlin.load.java.JvmAbi
@@ -35,10 +34,10 @@ class TypeAliasAnnotationMethodsLowering(val context: CommonBackendContext) :
     private val IrTypeAlias.syntheticAnnotationMethodName
         get() = Name.identifier(JvmAbi.getSyntheticMethodNameForAnnotatedTypeAlias(name))
 
-    private fun IrDeclarationContainer.visitTypeAliases() {
+    private fun IrClass.visitTypeAliases() {
         val annotatedAliases = declarations
             .filterIsInstance<IrTypeAlias>()
-            .filter { !it.descriptor.annotations.isEmpty() }
+            .filter { it.annotations.isNotEmpty() }
 
         for (alias in annotatedAliases) {
             addFunction {
@@ -46,7 +45,7 @@ class TypeAliasAnnotationMethodsLowering(val context: CommonBackendContext) :
                 visibility = alias.visibility
                 returnType = context.irBuiltIns.unitType
                 modality = Modality.OPEN
-                origin = JvmLoweredDeclarationOrigin.SYNTHETIC_METHOD_FOR_TYPEALIAS_ANNOTATIONS
+                origin = JvmLoweredDeclarationOrigin.SYNTHETIC_METHOD_FOR_PROPERTY_OR_TYPEALIAS_ANNOTATIONS
             }.apply {
                 body = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET)
                 annotations += alias.annotations

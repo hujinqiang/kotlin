@@ -2,23 +2,31 @@
 @java.lang.annotation.Retention
 @java.lang.annotation.Target
 @kotlin.Metadata
-public annotation class ClsAnn
+public annotation class ClsAnn {
+    // source: 'literals.kt'
+}
 
 @kotlin.annotation.Target
 @kotlin.annotation.Retention
 @java.lang.annotation.Retention
 @java.lang.annotation.Target
 @kotlin.Metadata
-public annotation class ExprAnn
+public annotation class ExprAnn {
+    // source: 'literals.kt'
+}
 
 @kotlin.annotation.Target
 @java.lang.annotation.Retention
 @java.lang.annotation.Target
 @kotlin.Metadata
-public annotation class FunAnn
+public annotation class FunAnn {
+    // source: 'literals.kt'
+}
 
 @kotlin.Metadata
 final class LiteralsKt$foo$1 {
+    // source: 'literals.kt'
+    enclosing method LiteralsKt.foo(I)LMy;
     synthetic final field $arg: int
     inner (anonymous) class LiteralsKt$foo$1
     method <init>(p0: int): void
@@ -28,6 +36,8 @@ final class LiteralsKt$foo$1 {
 
 @kotlin.Metadata
 final class LiteralsKt$foo$2 {
+    // source: 'literals.kt'
+    enclosing method LiteralsKt.foo(I)LMy;
     synthetic final field $arg: int
     inner (anonymous) class LiteralsKt$foo$2
     method <init>(p0: int): void
@@ -38,12 +48,16 @@ final class LiteralsKt$foo$2 {
 @ClsAnn
 @kotlin.Metadata
 public final class LiteralsKt$foo$3 {
+    // source: 'literals.kt'
+    enclosing method LiteralsKt.foo(I)LMy;
     inner (anonymous) class LiteralsKt$foo$3
     method <init>(): void
 }
 
 @kotlin.Metadata
 final class LiteralsKt$foo$x$1 {
+    // source: 'literals.kt'
+    enclosing method LiteralsKt.foo(I)LMy;
     synthetic final field $arg: int
     inner (anonymous) class LiteralsKt$foo$x$1
     method <init>(p0: int): void
@@ -53,6 +67,7 @@ final class LiteralsKt$foo$x$1 {
 
 @kotlin.Metadata
 public final class LiteralsKt {
+    // source: 'literals.kt'
     inner (anonymous) class LiteralsKt$foo$1
     inner (anonymous) class LiteralsKt$foo$2
     inner (anonymous) class LiteralsKt$foo$3
@@ -63,5 +78,6 @@ public final class LiteralsKt {
 
 @kotlin.Metadata
 public class My {
+    // source: 'literals.kt'
     public method <init>(): void
 }

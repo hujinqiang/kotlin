@@ -105,15 +105,13 @@ private fun CirClassConstructor.buildDescriptor(
     val constructorDescriptor = CommonizedClassConstructorDescriptor(
         containingDeclaration = containingDeclaration,
         annotations = annotations.buildDescriptors(targetComponents),
-        isPrimary = isPrimary,
-        kind = kind
+        isPrimary = isPrimary
     )
 
     constructorDescriptor.isExpect = isExpect
     constructorDescriptor.isActual = isActual
 
     constructorDescriptor.setHasStableParameterNames(hasStableParameterNames)
-    constructorDescriptor.setHasSynthesizedParameterNames(hasSynthesizedParameterNames)
 
     val classTypeParameters = containingDeclaration.declaredTypeParameters
     val (constructorTypeParameters, typeParameterResolver) = typeParameters.buildDescriptorsAndTypeParameterResolver(

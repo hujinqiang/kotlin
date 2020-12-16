@@ -5,6 +5,8 @@
 
 package templates
 
+import templates.DocExtensions.collection
+import templates.DocExtensions.element
 import templates.Family.*
 import templates.SequenceClass.*
 
@@ -40,7 +42,8 @@ object Elements : TemplateGroupBase() {
         typeParam("@kotlin.internal.OnlyInputTypes T")
         if (f == ArraysOfPrimitives && primitive!!.isFloatingPoint()) {
             val replacement = "any { it == element }"
-            deprecate(Deprecation(floatingSearchDeprecationMessage(signature, replacement), replacement, DeprecationLevel.WARNING))
+            val message = floatingSearchDeprecationMessage(signature, replacement)
+            deprecate(Deprecation(message, replacement, warningSince = "1.4"))
             annotation("""@Suppress("DEPRECATION")""")
         }
         returns("Boolean")
@@ -68,7 +71,8 @@ object Elements : TemplateGroupBase() {
         }
         if (f == ArraysOfPrimitives && primitive!!.isFloatingPoint()) {
             val replacement = "indexOfFirst { it == element }"
-            deprecate(Deprecation(floatingSearchDeprecationMessage(signature, replacement), replacement, DeprecationLevel.WARNING))
+            val message = floatingSearchDeprecationMessage(signature, replacement)
+            deprecate(Deprecation(message, replacement, warningSince = "1.4"))
         }
         returns("Int")
         body {
@@ -132,7 +136,8 @@ object Elements : TemplateGroupBase() {
         }
         if (f == ArraysOfPrimitives && primitive!!.isFloatingPoint()) {
             val replacement = "indexOfLast { it == element }"
-            deprecate(Deprecation(floatingSearchDeprecationMessage(signature, replacement), replacement, DeprecationLevel.WARNING))
+            val message = floatingSearchDeprecationMessage(signature, replacement)
+            deprecate(Deprecation(message, replacement, warningSince = "1.4"))
         }
         returns("Int")
         body {
@@ -426,6 +431,7 @@ object Elements : TemplateGroupBase() {
         include(CharSequences, Lists, ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
         doc { "Returns ${f.element.prefixWithArticle()} at the given [index] or `null` if the [index] is out of bounds of this ${f.collection}." }
+        sample("samples.collections.Collections.Elements.getOrNull")
         returns("T?")
         body {
             """
@@ -558,17 +564,24 @@ object Elements : TemplateGroupBase() {
     } builder {
         inline(Inline.Only)
         doc { "Returns the first ${f.element} matching the given [predicate], or `null` if no such ${f.element} was found." }
+        sample("samples.collections.Collections.Elements.find")
         returns("T?")
         body { "return firstOrNull(predicate)"}
     }
 
+    private val Family.sampleClass: String
+        get() = when (this) {
+            Strings, CharSequences -> "samples.text.Strings"
+            else -> "samples.collections.Collections.Elements"
+        }
 
     val f_last = fn("last()") {
         includeDefault()
         include(CharSequences, Lists, ArraysOfUnsigned)
     } builder {
-        doc { """Returns the last ${f.element}.
-        @throws [NoSuchElementException] if the ${f.collection} is empty.""" }
+        doc { "Returns the last ${f.element}." }
+        throws("NoSuchElementException", "if the ${f.collection} is empty.")
+        sample("${f.sampleClass}.last")
         returns("T")
         body {
             """
@@ -616,6 +629,7 @@ object Elements : TemplateGroupBase() {
         include(Lists, CharSequences, ArraysOfUnsigned)
     } builder {
         doc { "Returns the last ${f.element}, or `null` if the ${f.collection} is empty." }
+        sample("${f.sampleClass}.last")
         returns("T?")
         body {
             """
@@ -663,8 +677,9 @@ object Elements : TemplateGroupBase() {
         inline()
         specialFor(ArraysOfUnsigned) { inlineOnly() }
 
-        doc { """Returns the last ${f.element} matching the given [predicate].
-        @throws [NoSuchElementException] if no such ${f.element} is found.""" }
+        doc { "Returns the last ${f.element} matching the given [predicate]." }
+        throws("NoSuchElementException", "if no such ${f.element} is found.")
+        sample("${f.sampleClass}.last")
         returns("T")
         body {
             """
@@ -711,6 +726,7 @@ object Elements : TemplateGroupBase() {
         specialFor(ArraysOfUnsigned) { inlineOnly() }
 
         doc { "Returns the last ${f.element} matching the given [predicate], or `null` if no such ${f.element} was found." }
+        sample("${f.sampleClass}.last")
         returns("T?")
         body {
             """
@@ -752,6 +768,7 @@ object Elements : TemplateGroupBase() {
     } builder {
         inline(Inline.Only)
         doc { "Returns the last ${f.element} matching the given [predicate], or `null` if no such ${f.element} was found." }
+        sample("samples.collections.Collections.Elements.find")
         returns("T?")
         body { "return lastOrNull(predicate)"}
     }

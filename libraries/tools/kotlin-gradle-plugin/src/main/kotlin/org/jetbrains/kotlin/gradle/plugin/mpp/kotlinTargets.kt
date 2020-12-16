@@ -94,12 +94,12 @@ abstract class AbstractKotlinTarget(
 
             project.whenEvaluated {
                 (kotlinVariant as SoftwareComponentInternal).usages.filterIsInstance<KotlinUsageContext>().forEach { kotlinUsageContext ->
-                    val configuration = project.configurations.findByName(kotlinUsageContext.name)
-                        ?: project.configurations.create(kotlinUsageContext.name).also { configuration ->
+                    val publishedConfigurationName = publishedConfigurationName(kotlinUsageContext.name)
+                    val configuration = project.configurations.findByName(publishedConfigurationName)
+                        ?: project.configurations.create(publishedConfigurationName).also { configuration ->
                             configuration.isCanBeConsumed = false
                             configuration.isCanBeResolved = false
-                            configuration.dependencies.addAll(kotlinUsageContext.dependencies)
-                            configuration.dependencyConstraints.addAll(kotlinUsageContext.dependencyConstraints)
+                            configuration.extendsFrom(project.configurations.getByName(kotlinUsageContext.dependencyConfigurationName))
                             configuration.artifacts.addAll(kotlinUsageContext.artifacts)
 
                             val attributes = kotlinUsageContext.attributes
@@ -125,19 +125,14 @@ abstract class AbstractKotlinTarget(
 
             adhocVariant as SoftwareComponent
 
-            if (kotlinVariant is KotlinVariantWithMetadataVariant) {
-                object : ComponentWithVariants, ComponentWithCoordinates, SoftwareComponentInternal {
-                    override fun getCoordinates() = kotlinVariant.coordinates
-                    override fun getVariants(): Set<out SoftwareComponent> = kotlinVariant.variants
-                    override fun getName(): String = adhocVariant.name
-                    override fun getUsages(): MutableSet<out UsageContext> = (adhocVariant as SoftwareComponentInternal).usages
-                }
-            } else {
-                object : ComponentWithCoordinates, SoftwareComponentInternal {
-                    override fun getCoordinates() = (kotlinVariant as? ComponentWithCoordinates)?.coordinates
-                    override fun getName(): String = adhocVariant.name
-                    override fun getUsages(): MutableSet<out UsageContext> = (adhocVariant as SoftwareComponentInternal).usages
-                }
+            object : ComponentWithVariants, ComponentWithCoordinates, SoftwareComponentInternal {
+                override fun getCoordinates() = (kotlinVariant as? ComponentWithCoordinates)?.coordinates
+
+                override fun getVariants(): Set<out SoftwareComponent> =
+                    (kotlinVariant as? KotlinVariantWithMetadataVariant)?.variants.orEmpty()
+
+                override fun getName(): String = adhocVariant.name
+                override fun getUsages(): MutableSet<out UsageContext> = (adhocVariant as SoftwareComponentInternal).usages
             }
         }.toSet()
     }
@@ -218,6 +213,12 @@ abstract class AbstractKotlinTarget(
     override var preset: KotlinTargetPreset<out KotlinTarget>? = null
         internal set
 }
+
+private val publishedConfigurationNameSuffix = "-published"
+
+internal fun publishedConfigurationName(originalVariantName: String) = originalVariantName + publishedConfigurationNameSuffix
+internal fun originalVariantNameFromPublished(publishedConfigurationName: String): String? =
+    publishedConfigurationName.takeIf { it.endsWith(publishedConfigurationNameSuffix) }?.removeSuffix(publishedConfigurationNameSuffix)
 
 internal fun KotlinTarget.disambiguateName(simpleName: String) =
     lowerCamelCaseName(targetName, simpleName)

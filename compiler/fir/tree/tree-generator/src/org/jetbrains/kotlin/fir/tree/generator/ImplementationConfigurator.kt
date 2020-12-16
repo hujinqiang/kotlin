@@ -74,11 +74,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         impl(arrayOfCall)
 
-        val modifiableQualifiedAccess = impl(qualifiedAccessWithoutCallee, "FirModifiableQualifiedAccess") {}
-
-        impl(callableReferenceAccess) {
-            parents += modifiableQualifiedAccess
-        }
+        impl(callableReferenceAccess)
 
         impl(componentCall) {
             default("calleeReference", "FirSimpleNamedReference(source, Name.identifier(\"component\$componentIndex\"), null)")
@@ -117,6 +113,23 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             publicImplementation()
         }
 
+        impl(block, "FirLazyBlock") {
+            val error = """error("FirLazyBlock should be calculated before accessing")"""
+            default("statements") {
+                value = error
+                withGetter = true
+            }
+            default("annotations") {
+                value = error
+                withGetter = true
+            }
+            default("typeRef") {
+                value = error
+                withGetter = true
+            }
+            publicImplementation()
+        }
+
         impl(errorLoop) {
             default("block", "FirEmptyExpressionBlock()")
             default("condition", "FirErrorExpressionImpl(source, ConeStubDiagnostic(diagnostic))")
@@ -127,15 +140,24 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             publicImplementation()
         }
 
+        impl(expression, "FirLazyExpression") {
+            val error = """error("FirLazyExpression should be calculated before accessing")"""
+            default("typeRef") {
+                value = error
+                withGetter = true
+            }
+            default("annotations") {
+                value = error
+                withGetter = true
+            }
+            publicImplementation()
+        }
+
         impl(functionCall) {
-            parents += modifiableQualifiedAccess
             kind = OpenClass
         }
 
-        impl(qualifiedAccessExpression) {
-            parents += modifiableQualifiedAccess
-        }
-
+        impl(qualifiedAccessExpression)
 
         noImpl(expressionWithSmartcast)
 
@@ -147,13 +169,12 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         val errorTypeRefImpl = impl(errorTypeRef) {
-            default("type", "ConeClassErrorType(diagnostic.reason)")
+            default("type", "ConeClassErrorType(diagnostic)")
             default("delegatedTypeRef") {
                 value = "null"
                 withGetter = true
             }
             default("annotations", "mutableListOf()")
-            defaultFalse("isSuspend")
             useTypes(coneClassErrorTypeType)
         }
 
@@ -225,24 +246,19 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             }
         }
 
-        impl(operatorCall) {
-            default("typeRef", """
-                |if (operation in FirOperation.BOOLEANS) {
-                |        FirImplicitBooleanTypeRef(null)
-                |    } else {
-                |        FirImplicitTypeRefImpl(null)
-                |    }
-                """.trimMargin())
-
-            useTypes(implicitTypeRefType, implicitBooleanTypeRefType)
-        }
-
         impl(comparisonExpression) {
             default("typeRef", "FirImplicitBooleanTypeRef(null)")
             useTypes(implicitBooleanTypeRefType)
         }
 
         impl(typeOperatorCall)
+
+        impl(assignmentOperatorStatement)
+
+        impl(equalityOperatorCall) {
+            default("typeRef", "FirImplicitBooleanTypeRef(null)")
+            useTypes(implicitBooleanTypeRefType)
+        }
 
         impl(resolvedQualifier) {
             isMutable("packageFqName", "relativeClassFqName", "isNullableLHSForCallableReference")
@@ -274,7 +290,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         impl(thisReceiverExpression) {
-            parents += modifiableQualifiedAccess
             defaultNoReceivers()
         }
 
@@ -285,8 +300,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         impl(variableAssignment) {
-            parents += modifiableQualifiedAccess
-
             default("lValue") {
                 value = "calleeReference"
                 customSetter = "calleeReference = value"
@@ -375,10 +388,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         impl(superReference, "FirExplicitSuperReference")
 
-        impl(controlFlowGraphReference, "FirEmptyControlFlowGraphReference") {
-            noSource()
-            kind = Object
-        }
+        noImpl(controlFlowGraphReference)
 
         impl(resolvedTypeRef) {
             publicImplementation()
@@ -388,13 +398,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             defaultEmptyList("annotations")
             default("typeRef", "FirErrorTypeRefImpl(source, ConeStubDiagnostic(diagnostic))")
             useTypes(errorTypeRefImpl, coneStubDiagnosticType)
-        }
-
-        impl(resolvedFunctionTypeRef) {
-            default("delegatedTypeRef") {
-                value = "null"
-                withGetter = true
-            }
         }
 
         impl(errorFunction) {
@@ -407,8 +410,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         impl(implicitTypeRef) {
             defaultEmptyList("annotations")
         }
-
-        impl(composedSuperTypeRef)
 
         impl(reference, "FirStubReference") {
             default("source") {
@@ -453,14 +454,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             kind = OpenClass
         }
 
-        impl(delegatedTypeRef) {
-            listOf("source", "annotations").forEach {
-                default(it) {
-                    delegate = "typeRef"
-                }
-            }
-        }
-
         impl(safeCallExpression) {
             useTypes(safeCallCheckedSubjectType)
         }
@@ -475,14 +468,12 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
     private fun configureAllImplementations() {
         configureFieldInAllImplementations(
             field = "controlFlowGraphReference",
-            implementationPredicate = { it.type != "FirAnonymousFunctionImpl"}
+            implementationPredicate = { it.type != "FirAnonymousFunctionImpl" }
         ) {
-            default(it, "FirEmptyControlFlowGraphReference")
-            useTypes(emptyCfgReferenceType)
+            defaultNull(it)
         }
 
         val implementationWithConfigurableTypeRef = listOf(
-            "FirDelegatedTypeRefImpl",
             "FirTypeProjectionWithVarianceImpl",
             "FirCallableReferenceAccessImpl",
             "FirThisReceiverExpressionImpl",
@@ -499,6 +490,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             "FirVarargArgumentsExpressionImpl",
             "FirSafeCallExpressionImpl",
             "FirCheckedSafeCallSubjectImpl",
+            "FirArrayOfCallImpl",
         )
         configureFieldInAllImplementations(
             field = "typeRef",
@@ -507,13 +499,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         ) {
             default(it, "FirImplicitTypeRefImpl(null)")
             useTypes(implicitTypeRefType)
-        }
-
-        configureFieldInAllImplementations(
-            field = "attributes",
-            fieldPredicate = { it.type == declarationAttributesType.type }
-        ) {
-            default(it, "${declarationAttributesType.type}()")
         }
     }
 }

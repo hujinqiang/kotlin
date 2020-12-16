@@ -16,14 +16,16 @@ import org.apache.ivy.core.settings.IvySettings
 import org.apache.ivy.plugins.parser.xml.XmlModuleDescriptorWriter
 import org.apache.ivy.plugins.resolver.ChainResolver
 import org.apache.ivy.plugins.resolver.IBiblioResolver
-import org.apache.ivy.plugins.resolver.URLResolver
 import org.apache.ivy.util.DefaultMessageLogger
 import org.apache.ivy.util.Message
 import java.io.File
+import java.nio.file.Files
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.dependencies.ExternalDependenciesResolver
 import kotlin.script.experimental.dependencies.RepositoryCoordinates
+import kotlin.script.experimental.dependencies.impl.dependencyScopes
 import kotlin.script.experimental.dependencies.impl.toRepositoryUrlOrNull
+import kotlin.script.experimental.dependencies.impl.transitive
 
 class IvyResolver : ExternalDependenciesResolver {
 
@@ -62,7 +64,7 @@ class IvyResolver : ExternalDependenciesResolver {
         }
     }
 
-    private val ivyResolvers = arrayListOf<URLResolver>()
+    private val ivyResolvers = arrayListOf<IBiblioResolver>()
 
     private fun resolveArtifact(
         groupId: String,
@@ -111,10 +113,12 @@ class IvyResolver : ExternalDependenciesResolver {
             val depArtifact = DefaultDependencyArtifactDescriptor(depsDescriptor, artifactName, type, type, null, null)
             depsDescriptor.addDependencyArtifact(conf, depArtifact)
         }
-        depsDescriptor.addDependencyConfiguration("default", "master,compile")
+
+        val dependencyScopes = listOf("master") + (options.dependencyScopes ?: listOf("compile"))
+        depsDescriptor.addDependencyConfiguration("default", dependencyScopes.joinToString(","))
         moduleDescriptor.addDependency(depsDescriptor)
 
-        val isTransitive = options.flag("transitive") != false
+        val isTransitive = options.transitive != false
 
         val resolveOptions = ResolveOptions().apply {
             confs = arrayOf("default")
@@ -131,7 +135,7 @@ class IvyResolver : ExternalDependenciesResolver {
         // val report = ivy.resolve(moduleDescriptor, resolveOptions)
 
         //creates an ivy configuration file
-        val ivyFile = createTempFile("ivy", ".xml").apply { deleteOnExit() }
+        val ivyFile = Files.createTempFile("ivy", ".xml").toFile().apply { deleteOnExit() }
         XmlModuleDescriptorWriter.write(moduleDescriptor, ivyFile)
         val report = ivy.resolve(ivyFile.toURI().toURL(), resolveOptions)
 
@@ -149,13 +153,26 @@ class IvyResolver : ExternalDependenciesResolver {
         val url = repositoryCoordinates.toRepositoryUrlOrNull()
             ?: return false.asSuccess()
 
-        ivyResolvers.add(
-            IBiblioResolver().apply {
-                isM2compatible = true
-                name = url.host
-                root = url.toExternalForm()
-            }
-        )
+        val root = url.toExternalForm()
+
+        // Check whether this repository was already added
+        val prevRepoIndex = ivyResolvers.indexOfFirst { it.root == root }
+        if (prevRepoIndex != -1) {
+            // If yes, move it to the end of the list.
+            // It will decrease its resolution priority
+            val resolver = ivyResolvers[prevRepoIndex]
+            ivyResolvers.removeAt(prevRepoIndex)
+            ivyResolvers.add(resolver)
+        } else {
+            ivyResolvers.add(
+                IBiblioResolver().apply {
+                    isM2compatible = true
+                    name = url.host
+                    this.root = root
+                }
+            )
+        }
+
         return true.asSuccess()
     }
 

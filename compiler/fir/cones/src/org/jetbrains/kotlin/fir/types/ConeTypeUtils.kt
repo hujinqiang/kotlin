@@ -5,7 +5,9 @@
 
 package org.jetbrains.kotlin.fir.types
 
+import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.SmartSet
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
@@ -33,4 +35,23 @@ private fun ConeKotlinType.contains(predicate: (ConeKotlinType) -> Boolean, visi
         is ConeIntersectionType -> intersectedTypes.any { it.contains(predicate, visited) }
         else -> typeArguments.any { it is ConeKotlinTypeProjection && it.type.contains(predicate, visited) }
     }
+}
+
+fun ConeClassLikeType.withArguments(typeArguments: Array<out ConeTypeProjection>): ConeClassLikeType = when (this) {
+    is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, typeArguments, isNullable, attributes)
+    is ConeClassErrorType -> this
+    else -> error("Unknown cone type: ${this::class}")
+}
+
+fun ConeKotlinType.toTypeProjection(variance: Variance): ConeTypeProjection =
+    when (variance) {
+        Variance.INVARIANT -> this
+        Variance.IN_VARIANCE -> ConeKotlinTypeProjectionIn(this)
+        Variance.OUT_VARIANCE -> ConeKotlinTypeProjectionOut(this)
+    }
+
+fun ConeClassLikeType.replaceArgumentsWithStarProjections(): ConeClassLikeType {
+    if (typeArguments.isEmpty()) return this
+    val newArguments = Array(typeArguments.size) { ConeStarProjection }
+    return withArguments(newArguments)
 }

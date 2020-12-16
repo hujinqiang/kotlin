@@ -87,7 +87,7 @@ class WithNestedFun<K> {
 }
 
 fun <T> local() {
-    fun interface LocalFun {
+    <!LOCAL_INTERFACE_NOT_ALLOWED!>fun interface LocalFun<!> {
         fun invoke(element: T)
     }
 }

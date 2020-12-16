@@ -17,7 +17,10 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.descriptors.WrappedVariableDescriptor
-import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetValue
+import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
@@ -28,13 +31,14 @@ import org.jetbrains.kotlin.name.Name
 class JvmSharedVariablesManager(
     module: ModuleDescriptor,
     val symbols: JvmSymbols,
-    val irBuiltIns: IrBuiltIns
+    val irBuiltIns: IrBuiltIns,
+    irFactory: IrFactory,
 ) : SharedVariablesManager {
     private val jvmInternalPackage = IrExternalPackageFragmentImpl.createEmptyExternalPackageFragment(
         module, FqName("kotlin.jvm.internal")
     )
 
-    private val refNamespaceClass = jvmInternalPackage.addClass {
+    private val refNamespaceClass = irFactory.addClass(jvmInternalPackage) {
         name = Name.identifier("Ref")
     }
 
@@ -51,7 +55,7 @@ class JvmSharedVariablesManager(
     }
 
     private val primitiveRefProviders = irBuiltIns.primitiveIrTypes.associate { primitiveType ->
-        val refClass = refNamespaceClass.addClass {
+        val refClass = irFactory.addClass(refNamespaceClass) {
             origin = IrDeclarationOrigin.IR_BUILTINS_STUB
             name = Name.identifier(primitiveType.classOrNull!!.owner.name.asString() + "Ref")
         }.apply {
@@ -61,7 +65,7 @@ class JvmSharedVariablesManager(
     }
 
     private val objectRefProvider = run {
-        val refClass = refNamespaceClass.addClass {
+        val refClass = irFactory.addClass(refNamespaceClass) {
             origin = IrDeclarationOrigin.IR_BUILTINS_STUB
             name = Name.identifier("ObjectRef")
         }.apply {
@@ -91,13 +95,14 @@ class JvmSharedVariablesManager(
             typeArguments.forEachIndexed(::putTypeArgument)
         }
         return with(originalDeclaration) {
+            val descriptor = WrappedVariableDescriptor()
             IrVariableImpl(
-                startOffset, endOffset, origin, IrVariableSymbolImpl(WrappedVariableDescriptor()), name, refType,
+                startOffset, endOffset, origin, IrVariableSymbolImpl(descriptor), name, refType,
                 isVar = false, // writes are remapped to field stores
                 isConst = false, // const vals could not possibly require ref wrappers
                 isLateinit = false
             ).apply {
-                (descriptor as WrappedVariableDescriptor).bind(this)
+                descriptor.bind(this)
                 initializer = refConstructorCall
             }
         }
@@ -111,7 +116,7 @@ class JvmSharedVariablesManager(
             return sharedVariableDeclaration
         }
         val initializationStatement = with (originalDeclaration) {
-            IrSetVariableImpl(startOffset, endOffset, irBuiltIns.unitType, symbol, initializer, null)
+            IrSetValueImpl(startOffset, endOffset, irBuiltIns.unitType, symbol, initializer, null)
         }
         val sharedVariableInitialization = setSharedValue(sharedVariableDeclaration.symbol, initializationStatement)
         return with(originalDeclaration) {
@@ -123,7 +128,7 @@ class JvmSharedVariablesManager(
     }
 
     private fun unsafeCoerce(value: IrExpression, from: IrType, to: IrType): IrExpression =
-        IrCallImpl(value.startOffset, value.endOffset, to, symbols.unsafeCoerceIntrinsic).apply {
+        IrCallImpl.fromSymbolOwner(value.startOffset, value.endOffset, to, symbols.unsafeCoerceIntrinsic).apply {
             putTypeArgument(0, from)
             putTypeArgument(1, to)
             putValueArgument(0, value)
@@ -138,7 +143,7 @@ class JvmSharedVariablesManager(
             unboxedType?.let { unsafeCoerce(unboxedRead, it, symbol.owner.type) } ?: unboxedRead
         }
 
-    override fun setSharedValue(sharedVariableSymbol: IrVariableSymbol, originalSet: IrSetVariable): IrExpression =
+    override fun setSharedValue(sharedVariableSymbol: IrVariableSymbol, originalSet: IrSetValue): IrExpression =
         with(originalSet) {
             val unboxedType = InlineClassAbi.unboxType(symbol.owner.type)
             val unboxedValue = unboxedType?.let { unsafeCoerce(value, symbol.owner.type, it) } ?: value
@@ -148,7 +153,10 @@ class JvmSharedVariablesManager(
         }
 }
 
-private inline fun IrDeclarationContainer.addClass(builder: IrClassBuilder.() -> Unit) = buildClass(builder).also {
-    it.parent = this
-    declarations += it
+private inline fun IrFactory.addClass(
+    container: IrDeclarationContainer,
+    builder: IrClassBuilder.() -> Unit
+): IrClass = buildClass(builder).also {
+    it.parent = container
+    container.declarations += it
 }

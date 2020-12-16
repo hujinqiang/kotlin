@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper;
 import org.jetbrains.kotlin.config.LanguageFeature;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.annotations.Annotations;
+import org.jetbrains.kotlin.load.java.DescriptorsJvmAbiUtil;
 import org.jetbrains.kotlin.load.java.JvmAbi;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
@@ -28,6 +29,7 @@ import org.jetbrains.kotlin.resolve.InlineClassesUtilsKt;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.util.UnderscoreUtilKt;
 import org.jetbrains.kotlin.resolve.constants.ConstantValue;
+import org.jetbrains.kotlin.resolve.jvm.annotations.JvmAnnotationUtilKt;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOriginKt;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodGenericSignature;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature;
@@ -41,10 +43,11 @@ import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.org.objectweb.asm.commons.Method;
 
+import java.util.Collections;
 import java.util.List;
 
-import static org.jetbrains.kotlin.codegen.AsmUtil.getDeprecatedAccessFlag;
-import static org.jetbrains.kotlin.codegen.AsmUtil.getVisibilityForBackingField;
+import static org.jetbrains.kotlin.codegen.DescriptorAsmUtil.getDeprecatedAccessFlag;
+import static org.jetbrains.kotlin.codegen.DescriptorAsmUtil.getVisibilityForBackingField;
 import static org.jetbrains.kotlin.codegen.FunctionCodegen.processInterfaceMethod;
 import static org.jetbrains.kotlin.codegen.JvmCodegenUtil.isConstOrHasJvmFieldAnnotation;
 import static org.jetbrains.kotlin.codegen.JvmCodegenUtil.isJvmInterface;
@@ -159,7 +162,7 @@ public class PropertyCodegen {
 
     private void genBackingFieldAndAnnotations(@NotNull PropertyDescriptor descriptor) {
         // Fields and '$annotations' methods for non-private const properties are generated in the multi-file facade
-        boolean isBackingFieldOwner = descriptor.isConst() && !Visibilities.isPrivate(descriptor.getVisibility())
+        boolean isBackingFieldOwner = descriptor.isConst() && !DescriptorVisibilities.isPrivate(descriptor.getVisibility())
                                       ? !(context instanceof MultifileClassPartContext)
                                       : CodegenContextUtil.isImplementationOwner(context, descriptor);
 
@@ -217,7 +220,7 @@ public class PropertyCodegen {
         // and setter, in this case, the property can always be accessed through the accessor 'access<property name>$cp' and avoid some
         // useless indirection by using others accessors.
         if (isCompanionObject(descriptor.getContainingDeclaration())) {
-            if (Visibilities.isPrivate(descriptor.getVisibility()) && isDefaultGetterAndSetter) {
+            if (DescriptorVisibilities.isPrivate(descriptor.getVisibility()) && isDefaultGetterAndSetter) {
                 return false;
             }
             return true;
@@ -227,14 +230,14 @@ public class PropertyCodegen {
         if (isTopLevelInJvmMultifileClass(descriptor)) return true;
 
         // Private class properties have accessors only in cases when those accessors are non-trivial
-        if (Visibilities.isPrivate(descriptor.getVisibility())) {
+        if (DescriptorVisibilities.isPrivate(descriptor.getVisibility())) {
             return !isDefaultAccessor;
         }
 
         // Non-private properties with private setter should not be generated for trivial properties
         // as the class will use direct field access instead
         //noinspection ConstantConditions
-        if (accessor != null && accessor.isSetter() && Visibilities.isPrivate(descriptor.getSetter().getVisibility())) {
+        if (accessor != null && accessor.isSetter() && DescriptorVisibilities.isPrivate(descriptor.getSetter().getVisibility())) {
             return !isDefaultAccessor;
         }
 
@@ -253,12 +256,12 @@ public class PropertyCodegen {
         if (hasJvmFieldAnnotation(descriptor)) return false;
         if (kind == OwnerKind.ERASED_INLINE_CLASS) return false;
 
-        Visibility visibility = descriptor.getVisibility();
+        DescriptorVisibility visibility = descriptor.getVisibility();
         if (InlineClassesUtilsKt.isInlineClass(descriptor.getContainingDeclaration())) {
             return visibility.isPublicAPI();
         }
         else {
-            return !Visibilities.isPrivate(visibility);
+            return !DescriptorVisibilities.isPrivate(visibility);
         }
     }
 
@@ -407,18 +410,23 @@ public class PropertyCodegen {
         ClassBuilder builder = v;
 
         FieldOwnerContext backingFieldContext = context;
-        if (AsmUtil.isInstancePropertyWithStaticBackingField(propertyDescriptor) ) {
+        List<String> additionalVisibleAnnotations = Collections.emptyList();
+        if (DescriptorAsmUtil.isInstancePropertyWithStaticBackingField(propertyDescriptor) ) {
             modifiers |= ACC_STATIC;
 
-            if (JvmAbi.isPropertyWithBackingFieldInOuterClass(propertyDescriptor)) {
+            if (DescriptorsJvmAbiUtil.isPropertyWithBackingFieldInOuterClass(propertyDescriptor)) {
                 ImplementationBodyCodegen codegen = (ImplementationBodyCodegen) memberCodegen.getParentCodegen();
                 builder = codegen.v;
                 backingFieldContext = codegen.context;
+                if (DescriptorVisibilities.isPrivate(((ClassDescriptor) propertyDescriptor.getContainingDeclaration()).getVisibility())) {
+                    modifiers |= ACC_DEPRECATED;
+                    additionalVisibleAnnotations = Collections.singletonList(CodegenUtilKt.JAVA_LANG_DEPRECATED);
+                }
             }
         }
         modifiers |= getVisibilityForBackingField(propertyDescriptor, isDelegate);
 
-        if (AsmUtil.isPropertyWithBackingFieldCopyInOuterClass(propertyDescriptor)) {
+        if (DescriptorAsmUtil.isPropertyWithBackingFieldCopyInOuterClass(propertyDescriptor)) {
             ImplementationBodyCodegen parentBodyCodegen = (ImplementationBodyCodegen) memberCodegen.getParentCodegen();
             parentBodyCodegen.addCompanionObjectPropertyToCopy(propertyDescriptor, defaultValue);
         }
@@ -428,20 +436,25 @@ public class PropertyCodegen {
         v.getSerializationBindings().put(FIELD_FOR_PROPERTY, propertyDescriptor, new Pair<>(type, name));
 
         if (isBackingFieldOwner) {
+            String signature = isDelegate ? null : typeMapper.mapFieldSignature(kotlinType, propertyDescriptor);
             FieldVisitor fv = builder.newField(
                     JvmDeclarationOriginKt.OtherOrigin(propertyDescriptor), modifiers, name, type.getDescriptor(),
-                    isDelegate ? null : typeMapper.mapFieldSignature(kotlinType, propertyDescriptor), defaultValue
+                    signature, defaultValue
             );
 
             if (annotatedField != null) {
                 // Don't emit nullability annotations for backing field if:
-                // - backing field is invisible from Java (private or synthetic);
+                // - backing field is synthetic;
                 // - property is lateinit (since corresponding field is actually nullable).
                 boolean skipNullabilityAnnotations =
-                        (modifiers & ACC_PRIVATE) != 0 || (modifiers & ACC_SYNTHETIC) != 0 ||
+                        (modifiers & ACC_SYNTHETIC) != 0 ||
                         propertyDescriptor.isLateInit();
                 AnnotationCodegen.forField(fv, memberCodegen, state, skipNullabilityAnnotations)
-                        .genAnnotations(annotatedField, type, propertyDescriptor.getType());
+                        .genAnnotations(annotatedField, type, propertyDescriptor.getType(), null, additionalVisibleAnnotations);
+            }
+
+            if (propertyDescriptor.getContainingDeclaration() instanceof ClassDescriptor && JvmAnnotationUtilKt.isJvmRecord((ClassDescriptor) propertyDescriptor.getContainingDeclaration())) {
+                builder.newRecordComponent(name, type.getDescriptor(), signature);
             }
         }
     }
@@ -511,8 +524,8 @@ public class PropertyCodegen {
 
     private void generateAccessor(@Nullable KtPropertyAccessor accessor, @NotNull PropertyAccessorDescriptor descriptor) {
         if (context instanceof MultifileClassFacadeContext &&
-            (Visibilities.isPrivate(descriptor.getVisibility()) ||
-             AsmUtil.getVisibilityAccessFlag(descriptor) == Opcodes.ACC_PRIVATE)) {
+            (DescriptorVisibilities.isPrivate(descriptor.getVisibility()) ||
+             DescriptorAsmUtil.getVisibilityAccessFlag(descriptor) == Opcodes.ACC_PRIVATE)) {
             return;
         }
 

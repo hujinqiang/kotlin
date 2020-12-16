@@ -24,7 +24,7 @@ sealed class TypeArgumentMapping {
 }
 
 internal object MapTypeArguments : ResolutionStage() {
-    override suspend fun check(candidate: Candidate, sink: CheckerSink, callInfo: CallInfo) {
+    override suspend fun check(candidate: Candidate, callInfo: CallInfo, sink: CheckerSink, context: ResolutionContext) {
         val typeArguments = callInfo.typeArguments
         if (typeArguments.isEmpty()) {
             candidate.typeArgumentMapping = TypeArgumentMapping.NoExplicitArguments
@@ -36,16 +36,16 @@ internal object MapTypeArguments : ResolutionStage() {
         if (typeArguments.size == owner.typeParameters.size || callInfo.callKind == CallKind.DelegatingConstructorCall) {
             candidate.typeArgumentMapping = TypeArgumentMapping.Mapped(typeArguments)
         } else {
-            sink.yieldApplicability(CandidateApplicability.INAPPLICABLE)
             candidate.typeArgumentMapping = TypeArgumentMapping.Mapped(emptyList())
+            sink.yieldDiagnostic(InapplicableCandidate)
         }
     }
 }
 
 internal object NoTypeArguments : ResolutionStage() {
-    override suspend fun check(candidate: Candidate, sink: CheckerSink, callInfo: CallInfo) {
+    override suspend fun check(candidate: Candidate, callInfo: CallInfo, sink: CheckerSink, context: ResolutionContext) {
         if (callInfo.typeArguments.isNotEmpty()) {
-            sink.yieldApplicability(CandidateApplicability.INAPPLICABLE)
+            sink.yieldDiagnostic(InapplicableCandidate)
         }
         candidate.typeArgumentMapping = TypeArgumentMapping.NoExplicitArguments
     }

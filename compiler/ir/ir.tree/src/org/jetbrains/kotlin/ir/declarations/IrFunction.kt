@@ -23,26 +23,52 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.util.transformIfNeeded
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 
-interface IrFunction :
+abstract class IrFunction :
+    IrDeclarationBase(),
     IrDeclarationWithName, IrDeclarationWithVisibility, IrTypeParametersContainer, IrSymbolOwner, IrDeclarationParent, IrReturnTarget,
+    IrMemberWithContainerSource,
     IrMetadataSourceOwner {
 
     @ObsoleteDescriptorBasedAPI
-    override val descriptor: FunctionDescriptor
-    override val symbol: IrFunctionSymbol
+    abstract override val descriptor: FunctionDescriptor
+    abstract override val symbol: IrFunctionSymbol
 
-    val isInline: Boolean // NB: there's an inline constructor for Array and each primitive array class
-    val isExternal: Boolean
-    val isExpect: Boolean
+    abstract val isInline: Boolean // NB: there's an inline constructor for Array and each primitive array class
+    abstract val isExternal: Boolean
+    abstract val isExpect: Boolean
 
-    var returnType: IrType
+    abstract var returnType: IrType
 
-    var dispatchReceiverParameter: IrValueParameter?
-    var extensionReceiverParameter: IrValueParameter?
-    var valueParameters: List<IrValueParameter>
+    abstract var dispatchReceiverParameter: IrValueParameter?
+    abstract var extensionReceiverParameter: IrValueParameter?
+    abstract var valueParameters: List<IrValueParameter>
 
-    var body: IrBody?
+    abstract var body: IrBody?
+
+    override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
+        typeParameters.forEach { it.accept(visitor, data) }
+
+        dispatchReceiverParameter?.accept(visitor, data)
+        extensionReceiverParameter?.accept(visitor, data)
+        valueParameters.forEach { it.accept(visitor, data) }
+
+        body?.accept(visitor, data)
+    }
+
+    override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
+        typeParameters = typeParameters.transformIfNeeded(transformer, data)
+
+        dispatchReceiverParameter = dispatchReceiverParameter?.transform(transformer, data)
+        extensionReceiverParameter = extensionReceiverParameter?.transform(transformer, data)
+        valueParameters = valueParameters.transformIfNeeded(transformer, data)
+
+        body = body?.transform(transformer, data)
+    }
 }
 
 @ObsoleteDescriptorBasedAPI

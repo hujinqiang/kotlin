@@ -16,8 +16,9 @@
 
 package org.jetbrains.kotlin.ir.expressions.impl
 
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrReturnableBlock
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
@@ -28,22 +29,18 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrBlockImpl(
-    startOffset: Int,
-    endOffset: Int,
-    type: IrType,
-    origin: IrStatementOrigin? = null
-) :
-    IrContainerExpressionBase(startOffset, endOffset, type, origin),
-    IrBlock {
-
+    override val startOffset: Int,
+    override val endOffset: Int,
+    override var type: IrType,
+    override val origin: IrStatementOrigin? = null,
+) : IrBlock() {
     constructor(
         startOffset: Int,
         endOffset: Int,
         type: IrType,
         origin: IrStatementOrigin?,
         statements: List<IrStatement>
-    ) :
-            this(startOffset, endOffset, type, origin) {
+    ) : this(startOffset, endOffset, type, origin) {
         this.statements.addAll(statements)
     }
 
@@ -64,18 +61,16 @@ fun IrBlockImpl.inlineStatement(statement: IrStatement) {
 }
 
 class IrReturnableBlockImpl(
-        startOffset: Int,
-        endOffset: Int,
-        type: IrType,
-        override val symbol: IrReturnableBlockSymbol,
-        origin: IrStatementOrigin? = null,
-        override val inlineFunctionSymbol: IrFunctionSymbol? = null
-) :
-    IrContainerExpressionBase(startOffset, endOffset, type, origin),
-    IrReturnableBlock {
-
+    override val startOffset: Int,
+    override val endOffset: Int,
+    override var type: IrType,
+    override val symbol: IrReturnableBlockSymbol,
+    override val origin: IrStatementOrigin? = null,
+    override val inlineFunctionSymbol: IrFunctionSymbol? = null
+) : IrReturnableBlock() {
     @ObsoleteDescriptorBasedAPI
-    override val descriptor = symbol.descriptor
+    override val descriptor: FunctionDescriptor
+        get() = symbol.descriptor
 
     constructor(
         startOffset: Int,
@@ -102,7 +97,7 @@ class IrReturnableBlockImpl(
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         statements.forEachIndexed { i, irStatement ->
-            statements[i] = irStatement.transform(transformer, data)
+            statements[i] = irStatement.transform(transformer, data) as IrStatement
         }
     }
 }

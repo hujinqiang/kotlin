@@ -7,7 +7,8 @@ package org.jetbrains.kotlin.resolve
 
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.builtins.PrimitiveType
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.builtins.UnsignedTypes
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -22,7 +23,7 @@ import org.jetbrains.kotlin.resolve.BindingContext.COLLECTION_LITERAL_CALL
 import org.jetbrains.kotlin.resolve.calls.CallResolver
 import org.jetbrains.kotlin.resolve.calls.util.CallMaker
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.TypeUtils.NO_EXPECTED_TYPE
+import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingContext
 import org.jetbrains.kotlin.types.expressions.KotlinTypeInfo
 import org.jetbrains.kotlin.types.expressions.typeInfoFactory.createTypeInfo
@@ -76,7 +77,7 @@ class CollectionLiteralResolver(
         expression: KtCollectionLiteralExpression,
         callName: Name
     ): Collection<SimpleFunctionDescriptor> {
-        val memberScopeOfKotlinPackage = module.getPackage(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME).memberScope
+        val memberScopeOfKotlinPackage = module.getPackage(StandardNames.BUILT_INS_PACKAGE_FQ_NAME).memberScope
         return memberScopeOfKotlinPackage.getContributedFunctions(callName, KotlinLookupLocation(expression))
     }
 
@@ -93,12 +94,16 @@ class CollectionLiteralResolver(
     }
 
     private fun getArrayFunctionCallName(expectedType: KotlinType): Name {
-        if (NO_EXPECTED_TYPE === expectedType || !KotlinBuiltIns.isPrimitiveArray(expectedType)) {
+        if (TypeUtils.noExpectedType(expectedType) ||
+            !(KotlinBuiltIns.isPrimitiveArray(expectedType) || KotlinBuiltIns.isUnsignedArrayType(expectedType))
+        ) {
             return ArrayFqNames.ARRAY_OF_FUNCTION
         }
 
         val descriptor = expectedType.constructor.declarationDescriptor ?: return ArrayFqNames.ARRAY_OF_FUNCTION
 
-        return ArrayFqNames.PRIMITIVE_TYPE_TO_ARRAY[KotlinBuiltIns.getPrimitiveArrayType(descriptor)] ?: ArrayFqNames.ARRAY_OF_FUNCTION
+        return ArrayFqNames.PRIMITIVE_TYPE_TO_ARRAY[KotlinBuiltIns.getPrimitiveArrayType(descriptor)]
+            ?: UnsignedTypes.unsignedArrayTypeToArrayCall[UnsignedTypes.toUnsignedArrayType(descriptor)]
+            ?: ArrayFqNames.ARRAY_OF_FUNCTION
     }
 }

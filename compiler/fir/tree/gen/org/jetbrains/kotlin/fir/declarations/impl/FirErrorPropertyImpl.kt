@@ -33,13 +33,13 @@ internal class FirErrorPropertyImpl(
     override val session: FirSession,
     override var resolvePhase: FirResolvePhase,
     override val origin: FirDeclarationOrigin,
+    override val attributes: FirDeclarationAttributes,
     override val name: Name,
     override val annotations: MutableList<FirAnnotationCall>,
     override val diagnostic: ConeDiagnostic,
     override val typeParameters: MutableList<FirTypeParameter>,
     override val symbol: FirErrorPropertySymbol,
 ) : FirErrorProperty() {
-    override val attributes: FirDeclarationAttributes = FirDeclarationAttributes()
     override var returnTypeRef: FirTypeRef = FirErrorTypeRefImpl(null, diagnostic)
     override val receiverTypeRef: FirTypeRef? get() = null
     override val initializer: FirExpression? get() = null
@@ -63,6 +63,7 @@ internal class FirErrorPropertyImpl(
 
     override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirErrorPropertyImpl {
         transformReturnTypeRef(transformer, data)
+        transformTypeParameters(transformer, data)
         transformOtherChildren(transformer, data)
         return this
     }
@@ -97,9 +98,13 @@ internal class FirErrorPropertyImpl(
         return this
     }
 
+    override fun <D> transformTypeParameters(transformer: FirTransformer<D>, data: D): FirErrorPropertyImpl {
+        typeParameters.transformInplace(transformer, data)
+        return this
+    }
+
     override fun <D> transformOtherChildren(transformer: FirTransformer<D>, data: D): FirErrorPropertyImpl {
         transformAnnotations(transformer, data)
-        typeParameters.transformInplace(transformer, data)
         return this
     }
 
@@ -112,4 +117,6 @@ internal class FirErrorPropertyImpl(
     }
 
     override fun replaceReceiverTypeRef(newReceiverTypeRef: FirTypeRef?) {}
+
+    override fun replaceInitializer(newInitializer: FirExpression?) {}
 }

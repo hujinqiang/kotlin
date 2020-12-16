@@ -564,10 +564,10 @@ public abstract class KtUsefulTestCase extends TestCase {
         assertOrderedEquals("", actual, expected);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> void assertOrderedEquals(@NotNull String errorMsg,
             @NotNull Iterable<? extends T> actual,
             @NotNull Iterable<? extends T> expected) {
-        //noinspection unchecked
         assertOrderedEquals(errorMsg, actual, expected, Equality.CANONICAL);
     }
 
@@ -1008,8 +1008,8 @@ public abstract class KtUsefulTestCase extends TestCase {
      * @param exceptionCase    Block annotated with some exception type
      * @param expectedErrorMsg expected error message
      */
+    @SuppressWarnings("unchecked")
     protected void assertException(@NotNull AbstractExceptionCase exceptionCase, @Nullable String expectedErrorMsg) {
-        //noinspection unchecked
         assertExceptionOccurred(true, exceptionCase, expectedErrorMsg);
     }
 
@@ -1081,8 +1081,7 @@ public abstract class KtUsefulTestCase extends TestCase {
 
             if (shouldOccur) {
                 wasThrown = true;
-                final String errorMessage = exceptionCase.getAssertionErrorMessage();
-                assertEquals(errorMessage, exceptionCase.getExpectedExceptionClass(), cause.getClass());
+                assertInstanceOf(cause, exceptionCase.getExpectedExceptionClass());
                 if (expectedErrorMsgPart != null) {
                     assertTrue(cause.getMessage(), cause.getMessage().contains(expectedErrorMsgPart));
                 }
@@ -1103,7 +1102,7 @@ public abstract class KtUsefulTestCase extends TestCase {
         }
         finally {
             if (shouldOccur && !wasThrown) {
-                fail(exceptionCase.getAssertionErrorMessage());
+                fail(exceptionCase.getExpectedExceptionClass().getName() + " must be thrown.");
             }
         }
     }

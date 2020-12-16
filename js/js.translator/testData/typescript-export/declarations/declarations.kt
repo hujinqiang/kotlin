@@ -83,3 +83,22 @@ class A4 {
         get() = field * 10
         set(value) { field = value * 10 }
 }
+
+
+object O0
+
+object O {
+    val x = 10
+    fun foo() = 20
+}
+
+fun takesO(o: O): Int =
+    O.x + O.foo()
+
+// Test that JsExport with companion object compiles without error.
+// Usage is not supported yet.
+class KT_37829 {
+    companion object {
+        val x = 10
+    }
+}

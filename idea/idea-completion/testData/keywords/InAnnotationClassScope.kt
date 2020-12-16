@@ -18,9 +18,11 @@ annotation class Test {
 // EXIST:  operator
 // EXIST:  infix
 // EXIST:  sealed class
+// EXIST:  sealed interface
 // EXIST:  lateinit var
 // EXIST:  data class
 // EXIST:  inline
+// EXIST:  value
 // EXIST:  tailrec
 // EXIST:  external
 // EXIST:  annotation class

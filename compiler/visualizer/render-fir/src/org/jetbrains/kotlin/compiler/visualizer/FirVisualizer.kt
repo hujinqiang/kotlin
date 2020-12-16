@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.compiler.visualizer
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.fir.FirElement
-import org.jetbrains.kotlin.fir.FirLabel
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.psi
@@ -17,6 +16,7 @@ import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.resolve.directExpansionType
 import org.jetbrains.kotlin.fir.resolve.firSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.getSymbolByLookupTag
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.firUnsafe
 import org.jetbrains.kotlin.fir.symbols.AbstractFirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
@@ -222,7 +222,6 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
             expression.operationReference.let {
                 expression.allOfTypeWithLocalReplace<FirFunctionCall>(it) { this.calleeReference.name.asString() }
                     ?: expression.firstOfTypeWithLocalReplace<FirVariableAssignment>(it) { this.lValue.toString() }
-                    ?: expression.firstOfTypeWithRender<FirOperatorCall>(it)
             }
             super.visitBinaryExpression(expression)
         }
@@ -243,7 +242,7 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
         }
 
         override fun visitLambdaExpression(lambdaExpression: KtLambdaExpression) {
-            val firLabel = lambdaExpression.firstOfType<FirLabel>()
+            //val firLabel = lambdaExpression.firstOfType<FirLabel>()
 
             stack.push("<anonymous>")
             //firLabel?.let { addAnnotation("${it.name}@$innerLambdaCount", lambdaExpression) }
@@ -392,10 +391,6 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
             }
         }
 
-        override fun visitOperatorCall(operatorCall: FirOperatorCall, data: StringBuilder) {
-            data.append("operator call ${operatorCall.operation}")
-        }
-
         override fun visitComparisonExpression(comparisonExpression: FirComparisonExpression, data: StringBuilder) {
             data.append("CMP(${comparisonExpression.operation.operator}, ")
             comparisonExpression.compareToCall.accept(this, data)
@@ -404,6 +399,14 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
 
         override fun visitTypeOperatorCall(typeOperatorCall: FirTypeOperatorCall, data: StringBuilder) {
             //skip rendering for as/as?/is/!is
+        }
+
+        override fun visitAssignmentOperatorStatement(assignmentOperatorStatement: FirAssignmentOperatorStatement, data: StringBuilder) {
+            data.append("assignment operator statement ${assignmentOperatorStatement.operation}")
+        }
+
+        override fun visitEqualityOperatorCall(equalityOperatorCall: FirEqualityOperatorCall, data: StringBuilder) {
+            data.append("equality operator call ${equalityOperatorCall.operation}")
         }
 
         override fun visitSafeCallExpression(safeCallExpression: FirSafeCallExpression, data: StringBuilder) {
@@ -473,12 +476,6 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
             typeProjectionWithVariance.typeRef.accept(this, data)
         }
 
-        override fun visitDelegatedTypeRef(delegatedTypeRef: FirDelegatedTypeRef, data: StringBuilder) {
-            delegatedTypeRef.typeRef.accept(this, data)
-            data.append(" by ")
-            delegatedTypeRef.delegate?.accept(this, data)
-        }
-
         override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef, data: StringBuilder) {
             val coneType = resolvedTypeRef.type
             data.append(removeCurrentFilePackage(coneType.render()))
@@ -490,16 +487,6 @@ class FirVisualizer(private val firFile: FirFile) : BaseRenderer() {
 
         override fun visitErrorTypeRef(errorTypeRef: FirErrorTypeRef, data: StringBuilder) {
             data.append("[ERROR : ${errorTypeRef.diagnostic.reason}]")
-        }
-
-        override fun visitResolvedFunctionTypeRef(resolvedFunctionTypeRef: FirResolvedFunctionTypeRef, data: StringBuilder) {
-            resolvedFunctionTypeRef.receiverTypeRef?.let {
-                it.accept(this, data)
-                data.append(".")
-            }
-            visitValueParameters(resolvedFunctionTypeRef.valueParameters, data)
-            data.append(" -> ")
-            resolvedFunctionTypeRef.returnTypeRef.accept(this, data)
         }
 
         override fun visitTypeRefWithNullability(typeRefWithNullability: FirTypeRefWithNullability, data: StringBuilder) {

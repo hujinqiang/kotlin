@@ -5,7 +5,10 @@
 
 # Kotlin Programming Language
 
-Welcome to [Kotlin](https://kotlinlang.org/)! Some handy links:
+Welcome to [Kotlin](https://kotlinlang.org/)!   
+It is an open-source, statically typed programming language supported and developed by [JetBrains](https://www.jetbrains.com/) and open-source contributors.
+
+Some handy links:
 
  * [Kotlin Site](https://kotlinlang.org/)
  * [Getting Started Guide](https://kotlinlang.org/docs/tutorials/getting-started.html)
@@ -17,6 +20,16 @@ Welcome to [Kotlin](https://kotlinlang.org/)! Some handy links:
  * [Follow Kotlin on Twitter](https://twitter.com/kotlin)
  * [Public Slack channel](https://slack.kotlinlang.org/)
  * [TeamCity CI build](https://teamcity.jetbrains.com/project.html?tab=projectOverview&projectId=Kotlin)
+
+## Kotlin Multiplatform capabilities
+
+Support for multiplatform programming is one of Kotlin’s key benefits. It reduces time spent writing and maintaining the same code for [different platforms](https://kotlinlang.org/docs/reference/mpp-supported-platforms.html) while retaining the flexibility and benefits of native programming.
+
+ * [Kotlin Multiplatform Mobile](https://kotlinlang.org/lp/mobile/) for sharing code between Android and iOS
+ * [Getting Started with Kotlin Multiplatform Mobile Guide](https://kotlinlang.org/docs/mobile/create-first-app.html)
+ * [Kotlin Multiplatform Benefits](https://kotlinlang.org/docs/reference/multiplatform.html)
+ * [Share code on all platforms](https://kotlinlang.org/docs/reference/mpp-share-on-platforms.html#share-code-on-all-platforms)
+ * [Share code on similar platforms](https://kotlinlang.org/docs/reference/mpp-share-on-platforms.html#share-code-on-similar-platforms)
 
 ## Editing Kotlin
 
@@ -85,6 +98,8 @@ command line parameters on the first run:
 - `gradlePluginTest` - build and run gradle plugin tests
 - `compilerTest` - build and run all compiler tests
 - `ideaPluginTest` - build and run all IDEA plugin tests
+
+To reproduce TeamCity build use `-Pteamcity=true` flag. Local builds don't run proguard and have jar compression disabled by default.
 
 **OPTIONAL:** Some artifacts, mainly Maven plugin ones, are built separately with Maven.
 Refer to [libraries/ReadMe.md](libraries/ReadMe.md) for details.

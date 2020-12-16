@@ -9,12 +9,9 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.expressions.impl.IrErrorExpressionImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrExpressionBodyImpl
 import org.jetbrains.kotlin.ir.symbols.*
-import org.jetbrains.kotlin.ir.types.impl.IrErrorTypeImpl
 import org.jetbrains.kotlin.ir.util.SYNTHETIC_OFFSET
 import org.jetbrains.kotlin.resolve.DescriptorUtils
-import org.jetbrains.kotlin.types.Variance
 
 class SyntheticDeclarationsGenerator(context: GeneratorContext) : DeclarationDescriptorVisitor<Unit, IrDeclarationContainer?> {
 
@@ -36,7 +33,7 @@ class SyntheticDeclarationsGenerator(context: GeneratorContext) : DeclarationDes
         if (!descriptor.declaresDefaultValue()) return null
 
         val description = "Default Argument Value stub for ${descriptor.name}|${descriptor.index}"
-        return IrExpressionBodyImpl(IrErrorExpressionImpl(startOffset, endOffset, parameter.type, description))
+        return factory.createExpressionBody(IrErrorExpressionImpl(startOffset, endOffset, parameter.type, description))
     }
 
     private val defaultFactoryReference: IrFunction.(IrValueParameter) -> IrExpressionBody? = { defaultArgumentFactory(it) }
@@ -59,7 +56,7 @@ class SyntheticDeclarationsGenerator(context: GeneratorContext) : DeclarationDes
 
     override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: IrDeclarationContainer?) {
         require(data != null)
-        if (descriptor.visibility != Visibilities.INVISIBLE_FAKE) {
+        if (descriptor.visibility != DescriptorVisibilities.INVISIBLE_FAKE) {
             symbolTable.declareSimpleFunctionIfNotExists(descriptor) {
                 createFunctionStub(descriptor, it).insertDeclaration(data)
             }
@@ -143,7 +140,7 @@ class SyntheticDeclarationsGenerator(context: GeneratorContext) : DeclarationDes
 
     override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: IrDeclarationContainer?) {
         require(data != null)
-        if (descriptor.visibility != Visibilities.INVISIBLE_FAKE) {
+        if (descriptor.visibility != DescriptorVisibilities.INVISIBLE_FAKE) {
             symbolTable.declarePropertyIfNotExists(descriptor) {
                 createPropertyStub(descriptor, it).insertDeclaration(data).also { p ->
                     descriptor.getter?.let { g -> p.getter = declareAccessor(g, p) }
